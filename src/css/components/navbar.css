@@ -1,0 +1,28 @@
+.navbar-item {
+    display: block;
+    padding: 16px;
+    box-sizing: border-box;
+    background-color: #d3d3d3;
+    border: 3px solid transparent;
+    transition: border 0.15s ease-in-out;
+    transition: background-color 0.15s ease-in-out;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.navbar-item:hover {
+    background-color: #bbb;
+}
+.navbar-item:focus {
+    border: 3px solid darkblue;
+}
+.navbar-item-active {
+    text-decoration: underline;
+}
+
+.navbar-row {
+    display: flex;
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
