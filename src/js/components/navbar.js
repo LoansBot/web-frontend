@@ -6,8 +6,6 @@ const NavBar = (function() {
    * the item is clicked, but there need to be other handlers at the row-level
    * to support roving tab-indexes and general keyboard support.
    *
-   * All callbacks are passed one argument - the nav bar item affected
-   *
    * @param {string} name The name displayed on this item
    * @param {bool} active True if this is the current page, false otherwise
    * @param {bool} opensMenu True if this item opens a menu, false otherwise
@@ -17,7 +15,7 @@ const NavBar = (function() {
    * @param {string} ariaLabel The aria label for this item
    * @param {function} clicked This function is invoked when this item is
    *  clicked.
-   * @param {bool} shouldRipFocus True if this item should streal focus after
+   * @param {bool} shouldRipFocus True if this item should steal focus after
    *  it is rendered, false not to. Always treated as false if not focusable
    */
   class NavBarItem extends React.Component {
@@ -65,7 +63,7 @@ const NavBar = (function() {
 
     handleClick() {
       if (this.props.clicked) {
-        this.props.clicked(this);
+        this.props.clicked();
       }
     }
   };
@@ -107,7 +105,7 @@ const NavBar = (function() {
    * @param {function} exit A function which is called when the user tries to
    *     close this row. Returns true if this was a nested row and hence it
    *     could be closed and false if nothing happened. A null function is
-   *     treated as if it were () => false;
+   *     treated as if it were () => false
    * @param {string} ariaLabel The label applied to this nav-bar. Should be
    *   short.
    * @param {string} ariaDesc If not null, this is attached as a description
@@ -384,7 +382,7 @@ const NavBar = (function() {
               active: item.current,
               opensMenu: !!item.row,
               expanded: idx === this.state.expandedIndex,
-              enter: (item.row ? (_) => {
+              enter: (item.row ? () => {
                 if (idx == this.state.expandedIndex) {
                   this.setState({
                     expandedIndex: null,
@@ -433,7 +431,7 @@ const NavBar = (function() {
               };
             }),
             key: 'secondary',
-            exit: (_) => {
+            exit: () => {
               this.setState({
                 expandedIndex: null,
                 shouldRipPrimaryFocus: true,
