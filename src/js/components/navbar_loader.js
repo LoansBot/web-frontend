@@ -93,6 +93,7 @@ const NavbarLoader = (function() {
                 return this.renderLoading();
             }
             let navbarProps = Object.assign({}, this.props.navbarProps);
+            navbarProps.key = 'navbar-logged-in';
             navbarProps.row = this.state.show.map((nm) => this.rowItemByName(nm));
             return cE(NavBar, navbarProps, null);
         }
@@ -111,20 +112,20 @@ const NavbarLoader = (function() {
                     name: 'Login',
                     ariaLabel: 'Navigate to login or sign-up page',
                     current: current,
-                    url: '/login'
+                    url: '/login.html'
                 };
             }else if (name === 'logout') {
                 return {
                     name: `Logout (${this.state.username})`,
                     ariaLabel: 'Logout and refresh the page',
                     current: false,
-                    url: '/logout'
+                    url: '/logout.html'
                 };
             }
         }
 
         renderLoading() {
-            return cE('div', null, 'Loading Navbar...')
+            return cE('div', {key: 'navbar-logged-out'}, 'Loading Navbar...')
         }
     }
 
