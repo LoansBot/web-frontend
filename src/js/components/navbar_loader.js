@@ -93,7 +93,6 @@ const NavbarLoader = (function() {
                 return this.renderLoading();
             }
             let navbarProps = Object.assign({}, this.props.navbarProps);
-            navbarProps.key = 'navbar-logged-in';
             navbarProps.row = this.state.show.map((nm) => this.rowItemByName(nm));
             return cE(NavBar, navbarProps, null);
         }
@@ -125,7 +124,7 @@ const NavbarLoader = (function() {
         }
 
         renderLoading() {
-            return cE('div', {key: 'navbar-logged-out'}, 'Loading Navbar...')
+            return cE('div', null, 'Loading Navbar...')
         }
     }
 
