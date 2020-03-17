@@ -409,7 +409,7 @@ const NavBar = (function() {
           key: 'primary',
           exit: (_) => false,
           ariaLabel: 'Primary Menu',
-          ariaDesc: 'Keyboard Navigation',
+          ariaDesc: 'Arrows and Enter to Control',
           focusedIndex: this.state.primaryFocusIndex,
           shouldRipFocus: this.state.shouldRipPrimaryFocus,
           onFocusChanged: (idx) => { this.workingPrimaryFocusIndex = idx; }
