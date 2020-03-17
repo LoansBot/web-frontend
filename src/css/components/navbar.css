@@ -3,7 +3,7 @@
     padding: 16px;
     box-sizing: border-box;
     background-color: #d3d3d3;
-    border: 3px solid transparent;
+    border: 0.15em solid transparent;
     transition: border 0.15s ease-in-out;
     transition: background-color 0.15s ease-in-out;
     font-weight: bold;
@@ -14,7 +14,7 @@
     background-color: #bbb;
 }
 .navbar-item:focus {
-    border: 3px solid darkblue;
+    border: 0.2em solid blue;
 }
 .navbar-item-active {
     text-decoration: underline;

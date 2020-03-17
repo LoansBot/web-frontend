@@ -70,7 +70,7 @@ const NavbarLoader = (function() {
         setNotLoggedInState(mounted) {
             let newState = {
                 loading: false,
-                show: ['home', 'login'],
+                show: ['home', 'login', 'signup'],
                 username: null
             };
             if (mounted) {
@@ -102,16 +102,23 @@ const NavbarLoader = (function() {
             if (name === 'home') {
                 return {
                     name: 'Home',
-                    ariaLabel: 'Navigate to home page',
+                    ariaLabel: 'Navigate to the home page',
                     current: current,
                     url: '/'
                 };
             }else if (name === 'login') {
                 return {
                     name: 'Login',
-                    ariaLabel: 'Navigate to login or sign-up page',
+                    ariaLabel: 'Navigate to the login page',
                     current: current,
                     url: '/login.html'
+                };
+            }else if (name === 'signup') {
+                return {
+                    name: 'Sign Up',
+                    ariaLabel: 'Navigate to the sign-up page',
+                    current: current,
+                    url: '/signup.html'
                 };
             }else if (name === 'logout') {
                 return {

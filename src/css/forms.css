@@ -1,0 +1,44 @@
+form {
+    margin: 16px;
+    padding: 16px 35px 26px 35px;
+    border-width: 3px;
+    border-style: inset;
+    border-color: #eee;
+    background: #ddd;
+}
+
+.form-label {
+    display: block;
+    padding-bottom: 8px;
+}
+
+.form-label-text {
+    display: block;
+    font-variant: small-caps;
+}
+
+.text-input {
+    width: 100%;
+    padding-top: 7px;
+    padding-bottom: 4px;
+    padding-left: 8px;
+    font-size: large;
+    margin: 0 0;
+    box-sizing: border-box;
+}
+
+.text-input:focus {
+    border-color: blue;
+    border-width: 0.15em;
+}
+
+.button {
+    width: 100%;
+    padding: 8px 4px;
+    font-size: larger;
+    margin-top: 16px;
+}
+.button:focus {
+    border-color: blue;
+    border-width: 0.15em;
+}

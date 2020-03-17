@@ -1,7 +1,9 @@
 ReactDOM.render(
-    React.createElement('div', null, [
+    React.createElement(React.Fragment, null, [
         React.createElement(NavbarLoader, {key: 'navbar', currentPage: 'login'}),
-        React.createElement('div', {key: 'login-div', className: 'main'}, 'Hello world!')
+        React.createElement('div', {key: 'main', className: 'main'}, [
+            React.createElement(LoginForm, {key: 'login-form'})
+        ])
     ]),
     document.getElementById('content')
 );
