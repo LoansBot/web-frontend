@@ -17,6 +17,8 @@ const NavBar = (function() {
    *  clicked.
    * @param {bool} shouldRipFocus True if this item should steal focus after
    *  it is rendered, false not to. Always treated as false if not focusable
+   * @param {function} refocus A function which we call with a function which
+   *  will force focus onto this item
    */
   class NavBarItem extends React.Component {
     constructor(props) {
@@ -48,6 +50,11 @@ const NavBar = (function() {
 
     componentDidMount() {
       this.element.current.addEventListener('click', ((_) => this.handleClick()).bind(this));
+      if (this.props.refocus) {
+        this.props.refocus((() => {
+          this.element.current.focus()
+        }).bind(this));
+      }
       this.ripFocus();
     }
 
@@ -77,7 +84,8 @@ const NavBar = (function() {
     focusable: PropTypes.bool.isRequired,
     clicked: PropTypes.func.isRequired,
     focused: PropTypes.func.isRequired,
-    shouldRipFocus: PropTypes.bool.isRequired
+    shouldRipFocus: PropTypes.bool.isRequired,
+    refocus: PropTypes.func
   };
 
 
@@ -110,13 +118,22 @@ const NavBar = (function() {
    *   short.
    * @param {string} ariaDesc If not null, this is attached as a description
    *   to this navbar with an invisible div and aria-describedby. Should be
-   *   short.
+   *   short. If set, must also set ariaDescId to a unique id.
+   * @param {string} ariaDescId A unique id to use for the aria-describedby
+   *   div.
    * @param {number} focusedIndex The index within this navbar row which should
-   *  be focused if we are tabbed to
+   *   be focused if we are tabbed to
    * @param {bool} shouldRipFocus If true, we will force the windows focus to
-   *  focused index after mounting
+   *   focused index after mounting
    * @param {function} onFocusChanged If not null, we call it whenever the
-   *  focus within this row changes state. We pass 1 arg - the new index.
+   *   focus within this row changes state. We pass 1 arg - the new index.
+   * @param {bool} easeHeight If true, we will mount at a max-height of 0 and
+   *   clear that value immediately, which will allow easings to trigger.
+   * @param {bool} closing If true, easeHeight will be ignored. We will mount
+   *   with a max-height equal to the auto height and immediately set it to 0,
+   *   allowing easings to trigger.
+   * @param {function} refocus A function which we call with a function which
+   *   will immediately rip focus to our navbar item
    */
   class NavBarRow extends React.Component {
     constructor(props) {
@@ -127,8 +144,12 @@ const NavBar = (function() {
         focusedIndex: this.props.focusedIndex,
         shouldRipFocus: this.props.shouldRipFocus
       };
+      this.setToClosing = false;
+      this.setToExpanding = false;
       this.lastSawKey = Date.now();
       this.currentSearch = '';
+      this.refocusers = [];
+      this.realHeight = null;
     }
 
     getFocusedIndex() { return this.state.focusedIndex; }
@@ -142,19 +163,44 @@ const NavBar = (function() {
             active: item.active,
             opensMenu: item.opensMenu,
             expanded: item.expanded,
-            focusable: idx == this.state.focusedIndex,
+            focusable: !this.props.closing && idx == this.state.focusedIndex,
             shouldRipFocus: this.state.shouldRipFocus,
             ariaLabel: item.ariaLabel,
-            clicked: item.enter ? item.enter.bind(item) : item.apply.bind(item)
+            clicked: item.enter ? item.enter.bind(item) : item.apply.bind(item),
+            refocus: ((rfc) => this.refocusers[idx] = rfc).bind(this)
           }
         );
       });
       this.focusedItem = children[this.state.focusedIndex];
 
+      if (this.props.ariaDesc) {
+        return cE(
+          React.Fragment, null, [
+            cE('div',
+              {
+                key: 'navbar',
+                ref: this.element,
+                className: 'navbar-row' + (this.props.closing ? ' navbar-row-closing' : ''),
+                aria_describedby: this.props.ariaDescId
+              },
+              children
+            ),
+            cE('div',
+              {
+                key: 'desc',
+                id: this.props.ariaDescId,
+                style: {display: 'none'}
+              },
+              this.props.ariaDesc
+            )
+          ]
+        );
+      }
+
       return cE('div',
         {
           ref: this.element,
-          className: 'navbar-row'
+          className: 'navbar-row' + (this.props.closing ? ' navbar-row-closing' : '')
         },
         children
       );
@@ -162,11 +208,41 @@ const NavBar = (function() {
 
     componentDidMount() {
       this.element.current.addEventListener('keydown', this.onKeyDown.bind(this));
+      this.updateAnims();
+      if(this.props.refocus) {
+        this.props.refocus((() => this.refocusers[this.state.focusedIndex]()).bind(this));
+      }
     }
 
     componentDidUpdate() {
       if (this.props.onFocusChanged) {
         this.props.onFocusChanged(this.state.focusedIndex);
+      }
+      this.updateAnims();
+    }
+
+    updateAnims() {
+      this.realHeight = this.realHeight || this.element.current.clientHeight;
+
+      if (this.props.closing && !this.setToClosing) {
+        this.state.shouldRipFocus = false;
+        this.element.current.style.maxHeight = this.realHeight + "px";
+        this.element.current.style.marginTop = "1em";
+        setTimeout((() => {
+          this.element.current.style.maxHeight = "0px";
+          this.element.current.style.marginTop = "0px";
+        }).bind(this), 0);
+        this.setToClosing = true;
+        this.setToExpanding = false;
+      }else if (this.props.easeHeight && !this.setToExpanding) {
+        this.element.current.style.maxHeight = "0px";
+        this.element.current.style.marginTop = "0px";
+        setTimeout((() => {
+          this.element.current.style.maxHeight = this.realHeight + "px";
+          this.element.current.style.marginTop = "1em";
+        }).bind(this), 0);
+        this.setToClosing = false;
+        this.setToExpanding = true;
       }
     }
 
@@ -260,7 +336,10 @@ const NavBar = (function() {
         this.props.exit();
       }else if (e.key == ' ' || e.key == 'ArrowDown') {
         let itm = this.props.items[this.state.focusedIndex];
-        if (itm.enter) { itm.enter(); }
+        if (itm.enter) {
+          this.state.shouldRipFocus = false;
+          itm.enter();
+        }
       }else if (e.key === 'Home') {
         this.moveFocusStart();
       }else if (e.key === 'End') {
@@ -268,6 +347,7 @@ const NavBar = (function() {
       }else if(e.key === 'Enter') {
         let itm = this.props.items[this.state.focusedIndex];
         if (itm.enter) {
+          this.state.shouldRipFocus = false;
           itm.enter();
         }else {
           if (!itm.active) {
@@ -306,9 +386,13 @@ const NavBar = (function() {
     exit: PropTypes.func,
     ariaLabel: PropTypes.string.isRequired,
     ariaDesc: PropTypes.string,
+    ariaDescId: PropTypes.string,
     focusedIndex: PropTypes.number.isRequired,
     shouldRipFocus: PropTypes.bool.isRequired,
-    onFocusChanged: PropTypes.func
+    onFocusChanged: PropTypes.func,
+    easeHeight: PropTypes.bool,
+    closing: PropTypes.bool,
+    refocus: PropTypes.func
   };
 
 
@@ -365,11 +449,14 @@ const NavBar = (function() {
       this.workingSecondaryFocusIndex = 0;
       this.state = {
         expandedIndex: null,
+        closingExpanded: false,
         shouldRipPrimaryFocus: false,
         shouldRipSecondaryFocus: false,
         primaryFocusIndex: 0,
-        secondaryFocusIndex: 0,
+        secondaryFocusIndex: 0
       };
+      this.refocusMain = null;
+      this.refocusSub = null;
     }
 
     render() {
@@ -383,9 +470,10 @@ const NavBar = (function() {
               opensMenu: !!item.row,
               expanded: idx === this.state.expandedIndex,
               enter: (item.row ? () => {
-                if (idx == this.state.expandedIndex) {
+                if (idx == this.state.expandedIndex && !this.state.closingExpanded) {
                   this.setState({
-                    expandedIndex: null,
+                    expandedIndex: this.state.expandedIndex,
+                    closingExpanded: true,
                     shouldRipPrimaryFocus: true,
                     shouldRipSecondaryFocus: false,
                     primaryFocusIndex: this.workingPrimaryFocusIndex,
@@ -394,11 +482,15 @@ const NavBar = (function() {
                 }else {
                   this.setState({
                     expandedIndex: idx,
+                    closingExpanded: false,
                     shouldRipPrimaryFocus: false,
                     shouldRipSecondaryFocus: true,
                     primaryFocusIndex: this.workingPrimaryFocusIndex,
                     secondaryFocusIndex: this.workingSecondaryFocusIndex
                   });
+                  if (this.refocusSub) {
+                    this.refocusSub();
+                  }
                 }
               } : null),
               apply: (item.url ? (_) => {
@@ -410,9 +502,11 @@ const NavBar = (function() {
           exit: (_) => false,
           ariaLabel: 'Primary Menu',
           ariaDesc: 'Arrows and Enter to Control',
+          ariaDescId: 'navbar-primary-desc',
           focusedIndex: this.state.primaryFocusIndex,
           shouldRipFocus: this.state.shouldRipPrimaryFocus,
-          onFocusChanged: (idx) => { this.workingPrimaryFocusIndex = idx; }
+          onFocusChanged: (idx) => { this.workingPrimaryFocusIndex = idx; },
+          refocus: ((rfc) => this.refocusMain = rfc).bind(this)
         }
       );
       let children = [mainBar];
@@ -432,24 +526,30 @@ const NavBar = (function() {
             }),
             key: 'secondary',
             exit: () => {
-              this.setState({
-                expandedIndex: null,
-                shouldRipPrimaryFocus: true,
-                shouldRipSecondaryFocus: false,
-                primaryFocusIndex: this.workingPrimaryFocusIndex,
-                secondaryFocusIndex: this.workingSecondaryFocusIndex
-              });
+              if (!this.state.closing) {
+                this.refocusMain();
+                this.setState({
+                  expandedIndex: this.state.expandedIndex,
+                  closingExpanded: true,
+                  shouldRipPrimaryFocus: true,
+                  shouldRipSecondaryFocus: false,
+                  primaryFocusIndex: this.workingPrimaryFocusIndex,
+                  secondaryFocusIndex: this.workingSecondaryFocusIndex
+                });
+              }
             },
             ariaLabel: 'Secondary Menu',
-            ariaDesc: 'Keyboard Navigation',
             focusedIndex: this.state.secondaryFocusIndex,
             shouldRipFocus: this.state.shouldRipSecondaryFocus,
-            onFocusChanged: (idx) => { this.workingSecondaryFocusIndex = idx; }
+            onFocusChanged: (idx) => { this.workingSecondaryFocusIndex = idx; },
+            easeHeight: true,
+            closing: this.state.closingExpanded,
+            refocus: ((rfc) => this.refocusSub = rfc).bind(this)
           }
         ));
       }
 
-      return cE('div', {className: 'navbar'}, children);
+      return cE('nav', {className: 'navbar'}, children);
     }
   };
 

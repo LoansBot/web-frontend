@@ -70,7 +70,11 @@ const NavbarLoader = (function() {
         setNotLoggedInState(mounted) {
             let newState = {
                 loading: false,
-                show: ['home', 'login', 'signup'],
+                show: ['home', [
+                    'Account',
+                    'Open account management secondary navbar',
+                    ['login', 'signup', 'forgot-password']
+                ]],
                 username: null
             };
             if (mounted) {
@@ -98,6 +102,15 @@ const NavbarLoader = (function() {
         }
 
         rowItemByName(name) {
+            if(Array.isArray(name)) {
+                return {
+                    name: name[0],
+                    ariaLabel: name[1],
+                    current: name[2].some((nm) => this.props.currentPage == nm),
+                    row: name[2].map((nm) => this.rowItemByName(nm))
+                };
+            }
+
             let current = this.props.currentPage === name;
             if (name === 'home') {
                 return {
@@ -119,6 +132,13 @@ const NavbarLoader = (function() {
                     ariaLabel: 'Navigate to the sign-up page',
                     current: current,
                     url: '/signup.html'
+                };
+            }else if (name === 'forgot-password') {
+                return {
+                    name: 'Forgot Password',
+                    ariaLabel: 'Navigate to the password recovery page',
+                    current: current,
+                    url: '/forgot_password.html'
                 };
             }else if (name === 'logout') {
                 return {

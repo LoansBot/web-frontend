@@ -25,4 +25,10 @@
     width: 100%;
     flex-wrap: wrap;
     justify-content: flex-start;
+    transition: max-height 0.3s ease-out, margin-top 0.3s ease-out 0.3s;
+    overflow: hidden;
+}
+
+.navbar-row-closing {
+    transition: max-height 0.3s ease-out 0.3s, margin-top 0.3s ease-out;
 }
