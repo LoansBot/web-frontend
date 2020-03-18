@@ -1,4 +1,13 @@
 const Alert = (function() {
+    let SIZE_PROPS = [
+        ['transition', 'transition'],
+        ['height', 'height'],
+        ['padding-top', 'paddingTop'],
+        ['padding-bottom', 'paddingBottom'],
+        ['margin-top', 'marginTop'],
+        ['margin-bottom', 'marginBottom']
+    ];
+
     /**
      * A simple error component. Displays a message.
      * @param title The title for the component
@@ -9,12 +18,8 @@ const Alert = (function() {
         constructor(props) {
             super(props);
             this.element = React.createRef();
-            this.realHeight = null;
-            this.realPaddingTop = null;
-            this.realPaddingBottom = null;
-            this.realMarginTop = null;
-            this.realMarginBottom = null;
-            this.realTransition = null;
+            this.computedText = null;
+            this.realProps = null;
         }
 
         render() {
@@ -37,15 +42,12 @@ const Alert = (function() {
         }
 
         componentDidMount() {
-            if (this.realHeight === null) {
-                let cs = window.getComputedStyle(this.element.current, null);
-                this.realHeight = cs.getPropertyValue('height');
-                this.realPaddingTop = cs.getPropertyValue('padding-top');
-                this.realPaddingBottom = cs.getPropertyValue('padding-bottom');
-                this.realMarginTop = cs.getPropertyValue('margin-top');
-                this.realMarginBottom = cs.getPropertyValue('margin-bottom');
-                this.realTransition = cs.getPropertyValue("transition");
+            let cs = window.getComputedStyle(this.element.current, null);
+            this.realProps = {};
+            for(var i = 0; i < SIZE_PROPS.length; i++) {
+                this.realProps[SIZE_PROPS[i][0]] = cs.getPropertyValue(SIZE_PROPS[i][0]);
             }
+            this.computedText = this.props.text;
 
             this.element.current.style.transition = "none";
             this.element.current.style.maxHeight = "0px";
@@ -54,12 +56,43 @@ const Alert = (function() {
             this.element.current.style.marginTop = "0px";
             this.element.current.style.marginBottom = "0px";
             setTimeout((() => {
-                this.element.current.style.transition = this.realTransition;
-                this.element.current.style.maxHeight = this.realHeight;
-                this.element.current.style.paddingTop = this.realPaddingTop;
-                this.element.current.style.paddingBottom = this.realPaddingBottom;
-                this.element.current.style.marginTop =  this.realMarginTop;
-                this.element.current.style.marginBottom = this.realMarginBottom;
+                for(var i = 0; i < SIZE_PROPS.length; i++) {
+                    this.element.current.style[SIZE_PROPS[i][1]] = this.realProps[SIZE_PROPS[i][0]];
+                }
+                this.element.current.style.maxHeight = this.realProps['height'];
+            }).bind(this), 10);
+        }
+
+        componentDidUpdate() {
+            if (this.computedText === this.props.text) {
+                return;
+            }
+
+            let oldProps = this.realProps;
+            for(var i = 0; i < SIZE_PROPS.length; i++) {
+                this.element.current.style[SIZE_PROPS[i][1]] = null;
+            }
+            this.element.current.style.transition = "none";
+            this.element.current.style.maxHeight = null;
+
+            let cs = window.getComputedStyle(this.element.current, null);
+            this.realProps = {};
+            for(var i = 0; i < SIZE_PROPS.length; i++) {
+                this.realProps[SIZE_PROPS[i][0]] = cs.getPropertyValue(SIZE_PROPS[i][0]);
+            }
+            this.realProps['transition'] = oldProps['transition'];
+            this.computedText = this.props.text;
+
+            for(var i = 0; i < SIZE_PROPS.length; i++) {
+                this.element.current.style[SIZE_PROPS[i][1]] = oldProps[SIZE_PROPS[i][0]];
+            }
+            this.element.current.style.maxHeight = oldProps['height'];
+
+            setTimeout((() => {
+                for(var i = 0; i < SIZE_PROPS.length; i++) {
+                    this.element.current.style[SIZE_PROPS[i][1]] = this.realProps[SIZE_PROPS[i][0]];
+                }
+                this.element.current.style.maxHeight = this.realProps['height'];
             }).bind(this), 10);
         }
     }

@@ -50,13 +50,14 @@ const NavbarLoader = (function() {
         }
 
         clearAuthToken() {
-            sessionStorage.setItem('rl-authtoken', null);
-            sessionStorage.setItem('rl-user-id', null);
+            // sessionStorage.setItem('rl-authtoken', null);
+            // sessionStorage.setItem('rl-user-id', null);
         }
 
         tryGetUserInfo(user_id, token) {
-            return fetch(
-                `api/users/${user_id}/me`, {
+            console.log(`try get user info for user id ${user_id}`);
+            return api_fetch(
+                `/api/users/${user_id}/me`, {
                     headers: new Headers({'Cookie': `authtoken=${token}`}),
                     credentials: 'omit'
                 }

@@ -18,6 +18,8 @@ const [LoginForm, LoginFormWithLogic] = (function() {
      *   value
      * @param {function} submit A function which we call when this form is
      *   submitted. It is passed the submit event.
+     * @param {bool} disabled True if the login button should be disabled,
+     *   false or null otherwise
      */
     class LoginForm extends React.Component {
         constructor(props) {
@@ -47,7 +49,8 @@ const [LoginForm, LoginFormWithLogic] = (function() {
                             if(this.props.submit) {
                                 this.props.submit(e);
                             }
-                        }).bind(this)
+                        }).bind(this),
+                        disabled: this.props.disabled
                     }),
                     React.createElement(Button, {
                         key: 'toggle-pass', type: 'button', style: 'secondary',
@@ -74,7 +77,8 @@ const [LoginForm, LoginFormWithLogic] = (function() {
         usernameSet: PropTypes.func,
         passwordQuery: PropTypes.func,
         passwordSet: PropTypes.func,
-        submit: PropTypes.func
+        submit: PropTypes.func,
+        disabled: PropTypes.bool
     };
 
     /**
@@ -144,7 +148,7 @@ const [LoginForm, LoginFormWithLogic] = (function() {
                 disabled: true
             });
 
-            fetch(
+            api_fetch(
                 '/api/users/login',
                 {
                     method: 'POST',
@@ -177,6 +181,11 @@ const [LoginForm, LoginFormWithLogic] = (function() {
                         'and try again, or contact the moderators by sending ' +
                         'a PM to /r/borrow.'
                     );
+                }else if(resp.status === 403) {
+                    console.log('Bad username/password combination');
+                    return Promise.reject(
+                        'That username/password combination was not recognized.'
+                    );
                 }else if (resp.status < 200 || resp.status > 299) {
                     console.log(`Server gave unexpected response while using claim token: ${resp.status}`);
                     return Promise.reject(resp.status + ': ' + resp.statusText);
@@ -208,7 +217,7 @@ const [LoginForm, LoginFormWithLogic] = (function() {
                     {
                         alert: {
                             type: 'error',
-                            title: 'Signup Failed',
+                            title: 'Login Failed',
                             text: error.toString()
                         },
                         disabled: true

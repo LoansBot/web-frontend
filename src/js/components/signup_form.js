@@ -114,7 +114,7 @@ const [SignupForm, SignupFormWithLogic] = (function() {
                 disabled: true
             });
 
-            fetch(
+            api_fetch(
                 '/api/users/request_claim_token',
                 {
                     method: 'POST',
@@ -144,7 +144,7 @@ const [SignupForm, SignupFormWithLogic] = (function() {
                     console.log(`Server gave an unexpected response to requesting a claim token for ${username}: ${resp.status_code}`);
                     return Promise.reject(resp.status + ': ' + resp.statusText);
                 }else {
-                    return resp.json();
+                    return resp;
                 }
             }).then((() => {
                 this.setState(

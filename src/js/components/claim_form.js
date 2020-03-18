@@ -149,7 +149,7 @@ const [ClaimForm, ClaimFormWithLogic] = (function() {
                 disabled: true
             });
 
-            fetch(
+            api_fetch(
                 '/api/users/claim',
                 {
                     method: 'POST',
@@ -182,7 +182,7 @@ const [ClaimForm, ClaimFormWithLogic] = (function() {
                     console.log(`Server gave unexpected response while using claim token: ${resp.status}`);
                     return Promise.reject(resp.status + ': ' + resp.statusText);
                 }else {
-                    return resp.json();
+                    return resp;
                 }
             }).then((() => {
                 this.setState(
