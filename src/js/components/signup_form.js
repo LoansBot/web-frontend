@@ -68,7 +68,6 @@ const [SignupForm, SignupFormWithLogic] = (function() {
         }
 
         render() {
-            console.log(`render w/ logic; disabled=${this.state.disabled}`);
             return React.createElement(
                 React.Fragment,
                 null,
@@ -103,6 +102,18 @@ const [SignupForm, SignupFormWithLogic] = (function() {
             let username = this.getUsername();
 
             console.log(`Requesting claim token for ${username}...`);
+            this.setState({
+                alert: {
+                    type: 'info',
+                    title: 'Requesting claim token',
+                    text: (
+                        'A request is being sent to the server to register that ' +
+                        'account.'
+                    )
+                },
+                disabled: true
+            });
+
             fetch(
                 '/api/users/request_claim_token',
                 {
@@ -131,7 +142,7 @@ const [SignupForm, SignupFormWithLogic] = (function() {
                     );
                 }else if (resp.status < 200 || resp.status > 299) {
                     console.log(`Server gave an unexpected response to requesting a claim token for ${username}: ${resp.status_code}`);
-                    return Promise.reject(resp.statusText);
+                    return Promise.reject(resp.status + ': ' + resp.statusText);
                 }else {
                     return resp.json();
                 }
@@ -159,7 +170,7 @@ const [SignupForm, SignupFormWithLogic] = (function() {
                         alert: {
                             type: 'error',
                             title: 'Signup Failed',
-                            text: error
+                            text: error.toString()
                         },
                         disabled: true
                     }
