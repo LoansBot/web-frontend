@@ -9,6 +9,8 @@ const Button = (function() {
      *   specified. Typically 'submit'
      * @param {function} onClick Called whenever this button is clicked; passed
      *   the click event.
+     * @param {bool} disabled True if this button should be rendered in the
+     *   disabled state, false or null otherwise
      */
     class Button extends React.Component {
         constructor(props) {
@@ -22,9 +24,10 @@ const Button = (function() {
                 {
                     ref: this.buttonRef,
                     className: 'button' + (this.props.style ? ` button-${this.props.style}` : ''),
-                    type: this.props.type
+                    type: this.props.type,
+                    disabled: !!this.props.disabled
                 },
-                this.props.text
+                this.props.text + (this.props.disabled ? ' (disabled)' : '')
             );
         }
 
@@ -39,7 +42,8 @@ const Button = (function() {
         text: PropTypes.string.isRequired,
         type: PropTypes.string,
         style: PropTypes.string,
-        onClick: PropTypes.func
+        onClick: PropTypes.func,
+        disabled: PropTypes.bool
     };
 
     return Button;

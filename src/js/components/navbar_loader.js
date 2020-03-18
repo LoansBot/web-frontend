@@ -57,7 +57,8 @@ const NavbarLoader = (function() {
         tryGetUserInfo(user_id, token) {
             return fetch(
                 `api/users/${user_id}/me`, {
-                    headers: new Headers({'Cookie': `authtoken=${token}`})
+                    headers: new Headers({'Cookie': `authtoken=${token}`}),
+                    credentials: 'omit'
                 }
             ).then(response => {
                 if (!response.ok) {
