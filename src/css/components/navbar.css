@@ -1,0 +1,38 @@
+.navbar-item {
+    display: block;
+    padding: 16px;
+    box-sizing: border-box;
+    background-color: #d3d3d3;
+    border: 0.15em solid transparent;
+    transition: border 0.15s ease-in-out;
+    transition: background-color 0.15s ease-in-out;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.navbar-item:hover {
+    background-color: #bbb;
+}
+.navbar-item:focus {
+    border: 0.2em solid blue;
+}
+.navbar-item-active {
+    text-decoration: underline;
+}
+
+.navbar-row {
+    display: flex;
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    transition: max-height 0.3s ease-out, margin-top 0.3s ease-out 0.3s;
+    overflow: hidden;
+}
+
+.navbar-row-closing {
+    transition: max-height 0.3s ease-out 0.3s, margin-top 0.3s ease-out;
+}
+
+nav {
+    margin-bottom: 3em;
+}

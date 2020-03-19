@@ -1,0 +1,30 @@
+.alert-error, .alert-success, .alert-info {
+    border-left-style: solid;
+    border-left-width: 0.3em;
+    padding-left: 1em;
+    padding-top: 1.5em;
+    padding-bottom: 1.5em;
+    transition: max-height 0.3s, padding 0.3s;
+    overflow: hidden;
+}
+
+.alert-title {
+    font-weight: bold;
+    margin-bottom: 0.8em;
+    display: block;
+}
+
+.alert-error {
+    border-left-color: red;
+    background-color: rgb(255, 200, 209);
+}
+
+.alert-success {
+    border-left-color: green;
+    background-color: rgb(200, 255, 209);
+}
+
+.alert-info {
+    border-left-color: blue;
+    background-color: rgb(209, 200, 255);
+}

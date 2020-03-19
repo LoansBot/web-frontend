@@ -1,4 +1,4 @@
 ReactDOM.render(
-    React.createElement(HelloWorldBanner),
+    React.createElement(NavbarLoader, {currentPage: 'home'}),
     document.getElementById('content')
 );

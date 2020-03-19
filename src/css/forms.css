@@ -1,0 +1,52 @@
+form {
+    margin-top: 8px;
+    padding: 16px 35px 26px 35px;
+    border-width: 3px;
+    border-style: inset;
+    border-color: #eee;
+    background: #ddd;
+}
+
+.form-label {
+    display: block;
+    padding-bottom: 8px;
+}
+
+.form-label-text {
+    display: block;
+    font-variant: small-caps;
+}
+
+.text-input {
+    width: 100%;
+    padding-top: 7px;
+    padding-bottom: 4px;
+    padding-left: 8px;
+    font-size: large;
+    margin: 0 0;
+    box-sizing: border-box;
+}
+
+.text-input:focus {
+    border-color: blue;
+    border-width: 0.15em;
+}
+
+.button {
+    width: 100%;
+    padding: 8px 4px;
+    font-size: larger;
+    margin-top: 16px;
+    transition: color 0.3s 0.4s, background-color 0.7s;
+}
+
+.button:focus {
+    border-color: blue;
+    border-width: 0.15em;
+}
+
+.button:disabled {
+    background-color: rgb(34, 34, 34);
+    color: rgb(197, 197, 197);
+    border-color: black;
+}
