@@ -50,15 +50,14 @@ const NavbarLoader = (function() {
         }
 
         clearAuthToken() {
-            // sessionStorage.setItem('rl-authtoken', null);
-            // sessionStorage.setItem('rl-user-id', null);
+            sessionStorage.setItem('rl-authtoken', null);
+            sessionStorage.setItem('rl-user-id', null);
         }
 
         tryGetUserInfo(user_id, token) {
-            console.log(`try get user info for user id ${user_id}`);
             return api_fetch(
                 `/api/users/${user_id}/me`, {
-                    headers: new Headers({'Cookie': `authtoken=${token}`}),
+                    headers: new Headers({'Authorization': `bearer ${token}`}),
                     credentials: 'omit'
                 }
             ).then(response => {
@@ -140,7 +139,7 @@ const NavbarLoader = (function() {
                     name: 'Forgot Password',
                     ariaLabel: 'Navigate to the password recovery page',
                     current: current,
-                    url: '/forgot_password.html'
+                    url: '/signup.html?forgot=true'
                 };
             }else if (name === 'logout') {
                 return {

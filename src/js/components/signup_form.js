@@ -13,6 +13,7 @@ const [SignupForm, SignupFormWithLogic] = (function() {
      * @param {function} submit A function which we call when this form is
      *   submitted. It is passed the submit event.
      * @param {bool} disabled True for disabled state, false or null for enabled.
+     * @param {string} ctaText The text when you submit this form.
      */
     class SignupForm extends React.Component {
         constructor(props) {
@@ -31,7 +32,7 @@ const [SignupForm, SignupFormWithLogic] = (function() {
                         }
                     }),
                     React.createElement(Button, {
-                        key: 'submit', type: 'submit', style: 'primary', text: 'Signup',
+                        key: 'submit', type: 'submit', style: 'primary', text: this.props.ctaText,
                         disabled: this.props.disabled, onClick: this.props.submit
                     })
                 ]
@@ -49,13 +50,17 @@ const [SignupForm, SignupFormWithLogic] = (function() {
         usernameQuery: PropTypes.func,
         usernameSet: PropTypes.func,
         submit: PropTypes.func,
-        disabled: PropTypes.bool
+        disabled: PropTypes.bool,
+        ctaText: PropTypes.string.isRequired
     };
 
     /**
      * Wraps a signup form with the default implementation, which is to submit
      * a post request to /api/users/request_claim_token where the arguments
      * are just the username.
+     *
+     * @param {bool} forgotVariant If true, we indicate this can be used for
+     *   resetting your password. By default we indicate it's for signing up.
      */
     class SignupFormWithLogic extends React.Component {
         constructor(props) {
@@ -88,7 +93,8 @@ const [SignupForm, SignupFormWithLogic] = (function() {
                             key: 'signup-form',
                             usernameQuery: ((gtr) => this.getUsername = gtr).bind(this),
                             submit: this.onSubmit.bind(this),
-                            disabled: this.state.disabled
+                            disabled: this.state.disabled,
+                            ctaText: this.props.forgotVariant ? 'Resend Claim Token' : 'Sign Up'
                         }
                     )
                 ])
