@@ -1,0 +1,72 @@
+.log-feed {
+    list-style-type: none;
+    font-family: monospace;
+    padding: 0;
+}
+
+.log-item {
+    word-break: break-all;
+}
+
+.log-item:not(:last-child) {
+    border-bottom-width: 0.125em;
+    border-bottom-style: solid;
+    border-bottom-color: black;
+    padding-bottom: 0.2em;
+}
+
+.log-item:not(:first-child) {
+    padding-top: 0.2em;
+}
+
+.log-item-trace {
+    background-color: rgb(241, 240, 240);
+    color: rgb(161, 161, 161);
+}
+
+.log-item-debug {
+    background-color: rgb(214, 214, 214);
+    color: rgb(75, 75, 75);
+}
+
+.log-item-info {
+    background-color: lightblue;
+    color: black;
+}
+
+.log-item-warn {
+    background-color: rgb(255, 207, 214);
+    color: black;
+}
+
+.log-item-error {
+    background-color: rgb(255, 180, 192);
+    color: black;
+}
+
+.log-application {
+    margin-left: 1em;
+}
+
+.log-level {
+    margin-left: 1em;
+}
+
+@media screen {
+    .log-level {
+        /* This information is displayed visually using background-color */
+        position: absolute;
+        height: 1px;
+        width: 1px;
+        clip: rect(1px, 1px, 1px, 1px);
+        clip-path: polygon(0px 0px, 0px 0px, 0px 0px);
+        overflow: hidden !important;
+        margin-left: 0;
+    }
+}
+
+
+.log-message {
+    display: block;
+    width: 100%;
+}

@@ -1,0 +1,6 @@
+{
+    "files.exclude": {
+        "**/*.ico": true,
+        "**/*.png": true
+    }
+}

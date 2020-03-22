@@ -19,47 +19,69 @@ const NavbarLoader = (function() {
             this.state = {
                 loading: true,
                 show: [],
-                username: null
+                username: null,
+                permissions: null
             };
 
-            let info = this.getAuthToken();
+            this.userPermsState = null;
+            this.verifiedAuthState = null;
+
+            let info = AuthHelper.getAuthToken();
             if (info === null) {
                 this.setNotLoggedInState(false);
             }else {
                 this.tryGetUserInfo(info.userId, info.token).then((data) => {
-                    this.setLoggedInState(data);
+                    this.userPermsState = true;
+                    if (this.verifiedAuthState === false) {
+                        return;
+                    }
+
+                    this.setLoggedInState(null, data.permissions);
                 }).catch(() => {
-                    this.clearAuthToken();
+                    this.userPermsState = false;
+                    if (this.verifiedAuthState === false) {
+                        return;
+                    }
+
+                    AuthHelper.clearAuthToken();
+                    this.setNotLoggedInState(true);
+                });
+
+                this.tryVerifyLoggedIn(info.userId, info.token).then((data) => {
+                    this.verifiedAuthState = true;
+                    this.setLoggedInState(data.username, null);
+                }).catch(() => {
+                    this.verifiedAuthState = false;
+                    AuthHelper.clearAuthToken();
                     this.setNotLoggedInState(true);
                 });
             }
         }
 
-        getAuthToken() {
-            let token = sessionStorage.getItem('rl-authtoken');
-            if (token === null) {
-                this.clearAuthToken();
-                return null;
-            }
-            let userId = parseInt(sessionStorage.getItem('rl-user-id'));
-            if (isNaN(userId)) {
-                this.clearAuthToken();
-                return null;
-            }
-            return {token: token, userId: userId};
-        }
-
-        clearAuthToken() {
-            sessionStorage.setItem('rl-authtoken', null);
-            sessionStorage.setItem('rl-user-id', null);
-        }
-
+        /**
+         * Fetch the required information to display the navbar. This data is
+         * aggressively cached, so another job should be fired to verify the
+         * authorization token on /me which is less aggressively cached (see
+         * tryVerifyLoggedIn)
+         * @param {number} user_id The primary key of the user whose data needs
+         *   to be fetched
+         * @param {string} token The authorization to use to fetch their
+         *   permissions
+         */
         tryGetUserInfo(user_id, token) {
             return api_fetch(
-                `/api/users/${user_id}/me`, {
-                    headers: new Headers({'Authorization': `bearer ${token}`}),
-                    credentials: 'omit'
+                `/api/users/${user_id}/permissions`, AuthHelper.auth()
+            ).then(response => {
+                if (!response.ok) {
+                    return Promise.reject(response.statusText);
                 }
+                return response.json();
+            });
+        }
+
+        tryVerifyLoggedIn(user_id, token) {
+            return api_fetch(
+                `/api/users/${user_id}/me`, AuthHelper.auth()
             ).then(response => {
                 if (!response.ok) {
                     return Promise.reject(response.statusText);
@@ -85,11 +107,25 @@ const NavbarLoader = (function() {
             }
         }
 
-        setLoggedInState(data) {
+        setLoggedInState(username, permissions) {
+            let usern = username ? username : this.state.username;
+            let perms = permissions ? permissions : this.state.permissions;
+
+            let show = ['home'];
+            if(perms) {
+                for(var i = 0, len = perms.length; i < len; i++) {
+                    let itm = this.permToNavItem(perms[i]);
+                    if(itm) {
+                        show.push(itm);
+                    }
+                }
+            }
+            show.push('logout');
             this.setState({
                 loading: false,
-                show: ['home', 'logout'],
-                username: data.username
+                show: show,
+                username: usern,
+                permissions: perms
             });
         }
 
@@ -100,6 +136,15 @@ const NavbarLoader = (function() {
             let navbarProps = Object.assign({}, this.props.navbarProps);
             navbarProps.row = this.state.show.map((nm) => this.rowItemByName(nm));
             return cE(NavBar, navbarProps, null);
+        }
+
+        permToNavItem(name) {
+            if(name === 'logs') {
+                return 'logs';
+            }
+
+            console.log(`Unknown permission: ${name}`);
+            return null;
         }
 
         rowItemByName(name) {
@@ -113,40 +158,47 @@ const NavbarLoader = (function() {
             }
 
             let current = this.props.currentPage === name;
-            if (name === 'home') {
+            if(name === 'home') {
                 return {
                     name: 'Home',
                     ariaLabel: 'Navigate to the home page',
                     current: current,
                     url: '/'
                 };
-            }else if (name === 'login') {
+            }else if(name === 'login') {
                 return {
                     name: 'Login',
                     ariaLabel: 'Navigate to the login page',
                     current: current,
                     url: '/login.html'
                 };
-            }else if (name === 'signup') {
+            }else if(name === 'signup') {
                 return {
                     name: 'Sign Up',
                     ariaLabel: 'Navigate to the sign-up page',
                     current: current,
                     url: '/signup.html'
                 };
-            }else if (name === 'forgot-password') {
+            }else if(name === 'forgot-password') {
                 return {
                     name: 'Forgot Password',
                     ariaLabel: 'Navigate to the password recovery page',
                     current: current,
                     url: '/signup.html?forgot=true'
                 };
-            }else if (name === 'logout') {
+            }else if(name === 'logout') {
                 return {
-                    name: `Logout (${this.state.username})`,
+                    name: this.state.username ? `Logout (${this.state.username})` : 'Logout',
                     ariaLabel: 'Logout and refresh the page',
                     current: false,
                     url: '/logout.html'
+                };
+            }else if(name === 'logs') {
+                return {
+                    name: 'Logs',
+                    ariaLabel: 'Navigate to the view logs page',
+                    current: current,
+                    url: '/logs.html'
                 };
             }
         }
