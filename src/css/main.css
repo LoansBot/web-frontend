@@ -7,4 +7,6 @@ body {
 .main {
     max-width: 540px;
     margin: 0 auto;
+    padding-left: 6px;
+    padding-right: 6px;
 }

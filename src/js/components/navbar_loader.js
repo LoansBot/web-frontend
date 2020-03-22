@@ -26,13 +26,11 @@ const NavbarLoader = (function() {
             this.userPermsState = null;
             this.verifiedAuthState = null;
 
-            let info = this.getAuthToken();
+            let info = AuthHelper.getAuthToken();
             if (info === null) {
                 this.setNotLoggedInState(false);
             }else {
                 this.tryGetUserInfo(info.userId, info.token).then((data) => {
-                    console.log(`permissions found:`);
-                    console.log(data);
                     this.userPermsState = true;
                     if (this.verifiedAuthState === false) {
                         return;
@@ -45,39 +43,19 @@ const NavbarLoader = (function() {
                         return;
                     }
 
-                    this.clearAuthToken();
+                    AuthHelper.clearAuthToken();
                     this.setNotLoggedInState(true);
                 });
 
                 this.tryVerifyLoggedIn(info.userId, info.token).then((data) => {
-                    console.log(`Auth state verified: ${data.username}`);
                     this.verifiedAuthState = true;
                     this.setLoggedInState(data.username, null);
                 }).catch(() => {
                     this.verifiedAuthState = false;
-                    this.clearAuthToken();
+                    AuthHelper.clearAuthToken();
                     this.setNotLoggedInState(true);
                 });
             }
-        }
-
-        getAuthToken() {
-            let token = sessionStorage.getItem('rl-authtoken');
-            if (token === null) {
-                this.clearAuthToken();
-                return null;
-            }
-            let userId = parseInt(sessionStorage.getItem('rl-user-id'));
-            if (isNaN(userId)) {
-                this.clearAuthToken();
-                return null;
-            }
-            return {token: token, userId: userId};
-        }
-
-        clearAuthToken() {
-            sessionStorage.setItem('rl-authtoken', null);
-            sessionStorage.setItem('rl-user-id', null);
         }
 
         /**
@@ -92,10 +70,7 @@ const NavbarLoader = (function() {
          */
         tryGetUserInfo(user_id, token) {
             return api_fetch(
-                `/api/users/${user_id}/permissions`, {
-                    headers: new Headers({'Authorization': `bearer ${token}`}),
-                    credentials: 'omit'
-                }
+                `/api/users/${user_id}/permissions`, AuthHelper.auth()
             ).then(response => {
                 if (!response.ok) {
                     return Promise.reject(response.statusText);
@@ -106,10 +81,7 @@ const NavbarLoader = (function() {
 
         tryVerifyLoggedIn(user_id, token) {
             return api_fetch(
-                `/api/users/${user_id}/me`, {
-                    headers: new Headers({'Authorization': `bearer ${token}`}),
-                    credentials: 'omit'
-                }
+                `/api/users/${user_id}/me`, AuthHelper.auth()
             ).then(response => {
                 if (!response.ok) {
                     return Promise.reject(response.statusText);
@@ -167,8 +139,8 @@ const NavbarLoader = (function() {
         }
 
         permToNavItem(name) {
-            if(name === 'log') {
-                return 'log';
+            if(name === 'logs') {
+                return 'logs';
             }
 
             console.log(`Unknown permission: ${name}`);
@@ -221,7 +193,7 @@ const NavbarLoader = (function() {
                     current: false,
                     url: '/logout.html'
                 };
-            }else if(name === 'log') {
+            }else if(name === 'logs') {
                 return {
                     name: 'Logs',
                     ariaLabel: 'Navigate to the view logs page',
