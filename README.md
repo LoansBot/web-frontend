@@ -14,17 +14,10 @@ To protect against cross-site request forgery with this technique, the web
 backend promises the following:
 
 - GET requests never manipulate resources
-- POST requests will not accept data except in JSON format, and will specify
-  strict CORS headers as a hint to browsers.
+- POST requests will not accept data except in JSON format
+- No cookies; always use credentials=omit
 
-When testing locally, you can simply disable CORS checking on your browser and
-everything should behave as per normal, without having to launch a copy of the
-web-backend.
-
-For programmatic-access-only services, just ignore the CORS headers and you can
-use the API endpoints as you please. The login endpoints will work without a
-recaptcha but will be site-wide rate-limited. Please use descriptive user
-agents.
-
-For alternative frontends to redditloans which you don't want to PR you will
-have to contact me to have you whitelisted in the CORS headers.
+With these it's very easy to serve a front-end anywhere that interacts with
+our backend. Just ensure that it's extremely clear to the user that you aren't
+the official front-end, and include a prominent link to the official one at
+least once in a users lifetime.
