@@ -4,13 +4,18 @@ const [SignupForm, SignupFormWithLogic] = (function() {
      * button. This doesn't do the actual logic of signing up, just the
      * rendering.
      *
-     * @param {function} usernameQuery A function which we call after mounting
+     * @param {func} usernameQuery A function which we call after mounting
      *   with a function which accepts no arguments and returns the current
      *   username.
-     * @param {function} usernameSet A function which we call after mounting
+     * @param {func} usernameSet A function which we call after mounting
      *   with a function which accepts a string and sets the username to that
      *   value
-     * @param {function} submit A function which we call when this form is
+     * @param {func} captchaQuery A function which we call after mounting with
+     *   a function which accepts no arguments and returns the current captcha
+     *   token.
+     * @param {func} captchaClear A function which we call after mounting with
+     *   a function which accepts no arguments and clears the captcha token.
+     * @param {func} submit A function which we call when this form is
      *   submitted. It is passed the submit event.
      * @param {bool} disabled True for disabled state, false or null for enabled.
      * @param {string} ctaText The text when you submit this form.
@@ -31,6 +36,11 @@ const [SignupForm, SignupFormWithLogic] = (function() {
                             textQuery: this.props.usernameQuery, textSet: this.props.usernameSet
                         }
                     }),
+                    React.createElement(Captcha, {
+                        key: 'captcha',
+                        tokenGet: this.props.captchaQuery,
+                        tokenClear: this.props.captchaClear
+                    }),
                     React.createElement(Button, {
                         key: 'submit', type: 'submit', style: 'primary', text: this.props.ctaText,
                         disabled: this.props.disabled, onClick: this.props.submit
@@ -49,6 +59,8 @@ const [SignupForm, SignupFormWithLogic] = (function() {
     SignupForm.propTypes = {
         usernameQuery: PropTypes.func,
         usernameSet: PropTypes.func,
+        captchaQuery: PropTypes.func,
+        captchaClear: PropTypes.func,
         submit: PropTypes.func,
         disabled: PropTypes.bool,
         ctaText: PropTypes.string.isRequired
@@ -70,6 +82,8 @@ const [SignupForm, SignupFormWithLogic] = (function() {
                 disabled: false
             };
             this.getUsername = null;
+            this.getToken = null;
+            this.clearToken = null;
         }
 
         render() {
@@ -92,6 +106,8 @@ const [SignupForm, SignupFormWithLogic] = (function() {
                         {
                             key: 'signup-form',
                             usernameQuery: ((gtr) => this.getUsername = gtr).bind(this),
+                            captchaQuery: ((gtr) => this.getToken = gtr).bind(this),
+                            captchaClear: ((clr) => this.clearToken = clr).bind(this),
                             submit: this.onSubmit.bind(this),
                             disabled: this.state.disabled,
                             ctaText: this.props.forgotVariant ? 'Resend Claim Token' : 'Sign Up'
@@ -106,15 +122,20 @@ const [SignupForm, SignupFormWithLogic] = (function() {
             e.stopPropagation();
 
             let username = this.getUsername();
+            let token = this.getToken();
 
-            console.log(`Requesting claim token for ${username}...`);
+            console.log(`Requesting claim token for ${username} (captcha? ${!!token})`);
             this.setState({
                 alert: {
                     type: 'info',
                     title: 'Requesting claim token',
                     text: (
                         'A request is being sent to the server to register that ' +
-                        'account.'
+                        'account.' + (
+                            token ? '' : ' You opted not to complete the ' +
+                            'captcha, so you will be subject to more stringent rate-' +
+                            'limiting.'
+                        )
                     )
                 },
                 disabled: true
@@ -126,7 +147,10 @@ const [SignupForm, SignupFormWithLogic] = (function() {
                     method: 'POST',
                     credentials: 'omit',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({username: username})
+                    body: JSON.stringify({
+                        username: username,
+                        captcha_token: token ? token : null
+                    })
                 }
             ).then((resp) => {
                 if(resp.status === 429) {
@@ -170,6 +194,7 @@ const [SignupForm, SignupFormWithLogic] = (function() {
                 )
             }).bind(this)).catch(((error) => {
                 console.log(error);
+                this.clearToken();
 
                 this.setState(
                     {
