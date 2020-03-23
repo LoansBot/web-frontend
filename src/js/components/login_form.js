@@ -16,6 +16,11 @@ const [LoginForm, LoginFormWithLogic] = (function() {
      * @param {function} passwordSet A function which we call after mounting
      *   with a function which accepts a string and sets the password to that
      *   value
+     * @param {function} captchaQuery A function which we call after mounting
+     *   with a function which accepts no arguments and returns the current
+     *   captcha token.
+     * @param {function} captchaClear A function which we call after mounting
+     *   with a function which accepts no arguments and clears the captcha.
      * @param {function} submit A function which we call when this form is
      *   submitted. It is passed the submit event.
      * @param {bool} disabled True if the login button should be disabled,
@@ -42,6 +47,11 @@ const [LoginForm, LoginFormWithLogic] = (function() {
                     React.createElement(FormElement, {
                         key: 'password', component: TextInput, labelText: 'Password',
                         componentArgs: {type: this.state.showPassword ? 'text' : 'password', textQuery: this.props.passwordQuery, textSet: this.props.passwordSet}
+                    }),
+                    React.createElement(Captcha, {
+                        key: 'captcha',
+                        tokenGet: this.props.captchaQuery,
+                        tokenClear: this.props.captchaClear
                     }),
                     React.createElement(Button, {
                         key: 'submit', type: 'submit', style: 'primary', text: 'Login',
@@ -77,6 +87,8 @@ const [LoginForm, LoginFormWithLogic] = (function() {
         usernameSet: PropTypes.func,
         passwordQuery: PropTypes.func,
         passwordSet: PropTypes.func,
+        captchaQuery: PropTypes.func,
+        cpatchaClear: PropTypes.func,
         submit: PropTypes.func,
         disabled: PropTypes.bool
     };
@@ -98,6 +110,8 @@ const [LoginForm, LoginFormWithLogic] = (function() {
             };
             this.getUsername = null;
             this.getPassword = null;
+            this.getToken = null;
+            this.clearToken = null;
         }
 
         render() {
@@ -121,6 +135,8 @@ const [LoginForm, LoginFormWithLogic] = (function() {
                             key: 'login-form',
                             usernameQuery: ((gtr) => this.getUsername = gtr).bind(this),
                             passwordQuery: ((gtr) => this.getPassword = gtr).bind(this),
+                            captchaQuery: ((gtr) => this.getToken = gtr).bind(this),
+                            captchaClear: ((clr) => this.clearToken = clr).bind(this),
                             submit: this.onSubmit.bind(this),
                             disabled: this.state.disabled
                         }
@@ -135,14 +151,19 @@ const [LoginForm, LoginFormWithLogic] = (function() {
 
             let username = this.getUsername();
             let password = this.getPassword();
-            console.log(`Logging in as ${username}`);
+            let token = this.getToken();
+
+            console.log(`Logging in as ${username} (use captcha? ${!!token})`);
             this.setState({
                 alert: {
                     type: 'info',
                     title: 'Logging in..',
                     text: (
                         'A request is being sent to the server to login on that ' +
-                        'account.'
+                        'account.' + (
+                            token ? '' : ' You opted out of the captcha and will be ' +
+                            'subject to more stringent rate-limiting.'
+                        )
                     )
                 },
                 disabled: true
@@ -157,7 +178,7 @@ const [LoginForm, LoginFormWithLogic] = (function() {
                     body: JSON.stringify({
                         username: username,
                         password: password,
-                        recaptcha_token: 'todo'
+                        captcha_token: token
                     })
                 }
             ).then((resp) => {
@@ -182,9 +203,9 @@ const [LoginForm, LoginFormWithLogic] = (function() {
                         'a PM to /r/borrow.'
                     );
                 }else if(resp.status === 403) {
-                    console.log('Bad username/password combination');
+                    console.log('Bad username/password/token combination');
                     return Promise.reject(
-                        'That username/password combination was not recognized.'
+                        'That username/password combination was not recognized or you failed the captcha.'
                     );
                 }else if (resp.status < 200 || resp.status > 299) {
                     console.log(`Server gave unexpected response while using claim token: ${resp.status}`);
@@ -213,6 +234,7 @@ const [LoginForm, LoginFormWithLogic] = (function() {
             }).bind(this)).catch(((error) => {
                 console.log(error);
 
+                this.clearToken();
                 this.setState(
                     {
                         alert: {
@@ -223,6 +245,13 @@ const [LoginForm, LoginFormWithLogic] = (function() {
                         disabled: true
                     }
                 );
+
+                setTimeout((function() {
+                    this.setState({
+                        alert: this.state.alert,
+                        disabled: false
+                    })
+                }).bind(this), 1000)
             }).bind(this));
         }
     }
