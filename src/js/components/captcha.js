@@ -19,7 +19,8 @@ const Captcha = (function() {
                 'div',
                 {
                     id: 'captcha',
-                    className: 'h-captcha'
+                    className: 'h-captcha',
+                    'data-sitekey': 'e8002362-19f0-44e5-8b63-3274e078b8f4'
                 }
             );
         }
