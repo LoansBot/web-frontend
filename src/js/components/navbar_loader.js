@@ -143,7 +143,6 @@ const NavbarLoader = (function() {
                 return 'logs';
             }
 
-            console.log(`Unknown permission: ${name}`);
             return null;
         }
 
