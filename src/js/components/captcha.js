@@ -43,7 +43,7 @@ const Captcha = (function() {
             if(this.props.tokenGet) {
                 this.props.tokenGet(() => {
                     try {
-                        hcaptcha.getResponse()
+                        return hcaptcha.getResponse();
                     }catch(error) {
                         console.log(error);
                         return null;
