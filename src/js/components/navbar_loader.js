@@ -141,6 +141,8 @@ const NavbarLoader = (function() {
         permToNavItem(name) {
             if(name === 'logs') {
                 return 'logs';
+            }else if (name === 'responses') {
+                return 'responses';
             }
 
             return null;
@@ -198,6 +200,13 @@ const NavbarLoader = (function() {
                     ariaLabel: 'Navigate to the view logs page',
                     current: current,
                     url: '/logs.html'
+                };
+            }else if(name === 'responses') {
+                return {
+                    name: 'Responses',
+                    ariaLabel: 'Navigate to the view and edit responses page',
+                    current: current,
+                    url: '/responses.html'
                 };
             }
         }
