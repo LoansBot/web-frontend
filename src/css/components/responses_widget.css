@@ -1,4 +1,21 @@
-.response-current-view, .response-current-edit {
+.response-current-view, .response-edit {
     margin-top: 16px;
     margin-bottom: 24px;
+}
+
+.response-edit::before {
+    content: "";
+    display: block;
+    width: 100%;
+    height: 2px;
+    background: #333333;
+    margin-bottom: 16px;
+}
+
+.response-preview-label {
+    font-weight: 700;
+}
+
+.response-edit-title {
+    font-weight: 600;
 }

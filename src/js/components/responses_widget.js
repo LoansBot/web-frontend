@@ -4,6 +4,8 @@ const ResponsesWidget = (function() {
      * allow editing.
      *
      * @param {string} body The current body of the response
+     * @param {string} desc The current description of what this response is
+     *   used for
      * @param {Date} updatedAt When the response was last updated
      */
     class ResponseCurrentView extends React.Component {
@@ -53,11 +55,26 @@ const ResponsesWidget = (function() {
                             )
                         ]
                     ),
-                    React.createElement(TextArea,
+                    React.createElement(FormElement,
                         {
                             key: 'response-preview',
-                            text: this.props.body,
-                            disabled: true
+                            labelText: 'Response Format',
+                            component: TextArea,
+                            componentArgs: {
+                                text: this.props.body,
+                                disabled: true
+                            }
+                        }
+                    ),
+                    React.createElement(FormElement,
+                        {
+                            key: 'response-desc',
+                            labelText: 'Description (not publicly visible)',
+                            component: TextArea,
+                            componentArgs: {
+                                text: this.props.desc,
+                                disabled: true
+                            }
                         }
                     )
                 ]
@@ -67,6 +84,7 @@ const ResponsesWidget = (function() {
 
     ResponseCurrentView.propTypes = {
         body: PropTypes.string.isRequired,
+        desc: PropTypes.string.isRequired,
         updatedAt: PropTypes.instanceOf(Date).isRequired
     }
 
@@ -74,6 +92,8 @@ const ResponsesWidget = (function() {
      * Renders the most current value of a given response.
      *
      * @param {string} body The current value of the response
+     * @param {string} desc The current description of what the response is
+     *   used for
      * @param {Date} createdAt When the response was first created
      * @param {Date} updatedAt When the response was last updated
      */
@@ -83,10 +103,12 @@ const ResponsesWidget = (function() {
             this.state = {
                 editing: false,
                 editValue: this.props.body,
+                editDescValue: this.props.desc,
                 editReason: null,
             };
 
             this.editValueGet = null;
+            this.editDescValueGet = null;
             this.editReasonGet = null;
             this.editValueFocus = null;
             this.ripFocusToEdit = false;
@@ -102,6 +124,7 @@ const ResponsesWidget = (function() {
                             {
                                 key: 'response-current',
                                 body: this.props.body,
+                                desc: this.props.desc,
                                 updatedAt: this.props.updatedAt
                             }
                         ),
@@ -139,6 +162,17 @@ const ResponsesWidget = (function() {
                     ),
                     React.createElement(FormElement,
                         {
+                            labelText: 'New description (not publicly visible)',
+                            key: 'response-edit-desc-textarea',
+                            component: TextArea,
+                            componentArgs: {
+                                text: this.state.editDescValue,
+                                textQuery: ((gtr) => this.editDescValueGet = gtr).bind(this)
+                            }
+                        }
+                    ),
+                    React.createElement(FormElement,
+                        {
                             labelText: 'Reason for edit (>=5 chars)',
                             key: 'response-edit-reason',
                             component: TextInput,
@@ -164,6 +198,7 @@ const ResponsesWidget = (function() {
                                 let newState = Object.assign({}, this.state);
                                 newState.editing = false;
                                 newState.editValue = this.editValueGet();
+                                newState.editDescValue = this.editDescValueGet();
                                 newState.editReason = this.editReasonGet();
                                 this.setState(newState);
                             }).bind(this)
@@ -183,6 +218,7 @@ const ResponsesWidget = (function() {
 
     Response.propTypes = {
         body: PropTypes.string.isRequired,
+        desc: PropTypes.string.isRequired,
         createdAt: PropTypes.instanceOf(Date).isRequired,
         updatedAt: PropTypes.instanceOf(Date)
     };
@@ -191,6 +227,7 @@ const ResponsesWidget = (function() {
      * Renders a single edit from the past for a particular response.
      *
      * @param {string} body The body of the response after the edit
+     * @param {string} desc The description of the response after the edit
      * @param {object} editedBy Who edited the response, if known. Has two
      *   keys - id and username. This will be null if the user who originally
      *   made the edit was deleted.
@@ -208,74 +245,98 @@ const ResponsesWidget = (function() {
                     className: 'response-edit'
                 },
                 [
-                    (function() {
-                        // Edited by?
-                        if (!this.props.editedBy) {
-                            return React.createElement(
+                    React.createElement(
+                        'div',
+                        {
+                            key: 'response-edit-title',
+                            className: 'response-edit-title'
+                        },
+                        [
+                            (function() {
+                                // Edited by?
+                                if (!this.props.editedBy) {
+                                    return React.createElement(
+                                        'span',
+                                        {
+                                            key: 'response-no-edited-by',
+                                            className: 'response-no-edited-by',
+                                            aria_label: 'The user who edited this response has been deleted.'
+                                        },
+                                        '(no edited-by)'
+                                    );
+                                }
+
+                                return React.createElement(
+                                    'span',
+                                    {
+                                        key: 'response-edited-by',
+                                        className: 'response-edited-by'
+                                    },
+                                    this.props.editedBy.username
+                                );
+                            }).bind(this)(),
+                            React.createElement(
                                 'span',
                                 {
-                                    key: 'response-no-edited-by',
-                                    className: 'response-no-edited-by',
-                                    aria_label: 'The user who edited this response has been deleted.'
+                                    key: 'response-edited-at-pre',
+                                    className: 'response-edited-at-pre'
                                 },
-                                '(no edited-by)'
-                            );
+                                ' changed it on '
+                            ),
+                            React.createElement(
+                                'span',
+                                {
+                                    key: 'response-edited-at-date',
+                                    className: 'response-edited-at-date'
+                                },
+                                this.props.editedAt.toLocaleDateString()
+                            ),
+                            React.createElement(
+                                'span',
+                                {
+                                    key: 'response-edited-at-pre-time',
+                                    className: 'response-edited-at-pre-time'
+                                },
+                                ' at '
+                            ),
+                            React.createElement(
+                                'span',
+                                {
+                                    key: 'response-edited-at-time',
+                                    className: 'response-edited-at-time'
+                                },
+                                this.props.editedAt.toLocaleTimeString()
+                            ),
+                            React.createElement(
+                                'span',
+                                {
+                                    key: 'response-edited-at-post',
+                                    className: 'response-edited-at-post'
+                                },
+                                ' to '
+                            )
+                        ]
+                    ),
+                    React.createElement(FormElement,
+                        {
+                            key: 'body-textarea',
+                            labelText: 'Response Format',
+                            component: TextArea,
+                            componentArgs: {
+                                text: this.props.body,
+                                disabled: true
+                            }
                         }
-
-                        return React.createElement(
-                            'span',
-                            {
-                                key: 'response-edited-by',
-                                className: 'response-edited-by'
-                            },
-                            this.props.editedBy.username
-                        );
-                    }).bind(this)(),
-                    React.createElement(
-                        'span',
-                        {
-                            key: 'response-edited-at-pre',
-                            className: 'response-edited-at-pre'
-                        },
-                        ' changed it on '
                     ),
-                    React.createElement(
-                        'span',
+                    React.createElement(FormElement,
                         {
-                            key: 'response-edited-at-date',
-                            className: 'response-edited-at-date'
-                        },
-                        this.props.editedAt.toLocaleDateString()
-                    ),
-                    React.createElement(
-                        'span',
-                        {
-                            key: 'response-edited-at-pre-time',
-                            className: 'response-edited-at-pre-time'
-                        },
-                        ' at '
-                    ),
-                    React.createElement(
-                        'span',
-                        {
-                            key: 'response-edited-at-time',
-                            className: 'response-edited-at-time'
-                        },
-                        this.props.editedAt.toLocaleTimeString()
-                    ),
-                    React.createElement(
-                        'span',
-                        {
-                            key: 'response-edited-at-post',
-                            className: 'response-edited-at-post'
-                        },
-                        ' to '
-                    ),
-                    React.createElement(TextArea,
-                        {
-                            key: 'textarea',
-                            text: this.props.body,
-                            disabled: true
+                            key: 'desc-textarea',
+                            labelText: 'Description (not publicly visible)',
+                            component: TextArea,
+                            componentArgs: {
+                                text: this.props.desc,
+                                disabled: true
+                            }
                         }
                     )
                 ]
@@ -285,6 +346,7 @@ const ResponsesWidget = (function() {
 
     ResponseEdit.propTypes = {
         body: PropTypes.string.isRequired,
+        desc: PropTypes.string.isRequired,
         editedBy: PropTypes.shape({
             id: PropTypes.number.isRequired,
             username: PropTypes.string.isRequired
@@ -297,7 +359,7 @@ const ResponsesWidget = (function() {
      * time, in order.
      *
      * @param {array} history The history of the response, from newest to
-     *   oldest, where each item has a body, editedBy, and editedAt.
+     *   oldest, where each item has a body, desc, editedBy, and editedAt.
      */
     class ResponseHistory extends React.Component {
         render() {
@@ -310,6 +372,7 @@ const ResponsesWidget = (function() {
                         {
                             key: `response-edit-${idx}`,
                             body: itm.body,
+                            desc: itm.desc,
                             editedBy: itm.editedBy,
                             editedAt: itm.editedAt
                         }
@@ -322,6 +385,7 @@ const ResponsesWidget = (function() {
     ResponseHistory.propTypes = {
         history: PropTypes.arrayOf(PropTypes.shape({
             body: PropTypes.string.isRequired,
+            desc: PropTypes.string.isRequired,
             editedBy: PropTypes.shape({
                 id: PropTypes.number.isRequired,
                 username: PropTypes.string.isRequired
@@ -337,6 +401,7 @@ const ResponsesWidget = (function() {
      *
      * @param {string} name The name of the response that is being edited
      * @param {string} body The body of the response today
+     * @param {string} desc The description of the response today
      * @param {Date} createdAt When the responses first version was first
      *   saved to the database
      * @param {Date} updatedAt When the responses most recent version was saved
@@ -344,7 +409,8 @@ const ResponsesWidget = (function() {
      * @param {array} history The history of the response, from newest to
      *   oldest, where each item has a body (the string body after the edit
      *   was made), who edited it (editedBy is an object with an id and
-     *   username field) and when the edit occurred (editedAt).
+     *   username field), when the edit occurred (editedAt), and the response
+     *   description after the edit (desc).
      */
     class ResponseWidget extends React.Component {
         render() {
@@ -357,6 +423,7 @@ const ResponsesWidget = (function() {
                         {
                             key: 'response',
                             body: this.props.body,
+                            desc: this.props.desc,
                             createdAt: this.props.createdAt,
                             updatedAt: this.props.updatedAt
                         }
@@ -376,10 +443,12 @@ const ResponsesWidget = (function() {
     ResponseWidget.propTypes = {
         name: PropTypes.string.isRequired,
         body: PropTypes.string.isRequired,
+        desc: PropTypes.string.isRequired,
         createdAt: PropTypes.instanceOf(Date).isRequired,
         updatedAt: PropTypes.instanceOf(Date).isRequired,
         history: PropTypes.arrayOf(PropTypes.shape({
             body: PropTypes.string.isRequired,
+            desc: PropTypes.string.isRequired,
             editedBy: PropTypes.shape({
                 id: PropTypes.number.isRequired,
                 username: PropTypes.string.isRequired
@@ -402,11 +471,13 @@ const ResponsesWidget = (function() {
                     {
                         name: 'foo_bar',
                         body: 'This is <my> response',
+                        desc: 'This response is used when we foo the bar',
                         createdAt: new Date(),
                         updatedAt: new Date(),
                         history: [
                             {
                                 body: 'This was my response',
+                                desc: 'TODO desc',
                                 editedBy: {
                                     id: 1,
                                     username: 'Tjstretchalot'
