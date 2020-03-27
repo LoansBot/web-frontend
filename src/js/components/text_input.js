@@ -16,6 +16,8 @@ const TextInput = (function() {
      *   input
      * @param {function} textChanged A function which we will call whenever
      *   the text on this input changes. We pass the new value of this input.
+     * @param {function} focus A function which we will call with a function
+     *   which focuses this text input
      */
     class TextInput extends React.Component {
         constructor(props) {
@@ -36,18 +38,22 @@ const TextInput = (function() {
         }
 
         componentDidMount() {
-            if (this.props.textQuery) {
+            if(this.props.textQuery) {
                 this.props.textQuery((() => this.getValue()).bind(this));
             }
 
-            if (this.props.textSet) {
+            if(this.props.textSet) {
                 this.props.textSet(((text) => this.inputRef.current.value = text.toString()).bind(this));
             }
 
-            if (this.props.textChanged) {
+            if(this.props.textChanged) {
                 this.inputRef.current.addEventListener('input', ((e) => {
                     this.props.textChanged(this.getValue());
                 }).bind(this));
+            }
+
+            if(this.props.focus) {
+                this.props.focus((() => this.inputRef.current.focus()).bind(this));
             }
         }
 

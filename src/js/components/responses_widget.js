@@ -400,19 +400,22 @@ const ResponsesWidget = (function() {
      * it.
      *
      * @param {string} name The name of the response that is being edited
-     * @param {string} body The body of the response today
-     * @param {string} desc The description of the response today
-     * @param {Date} createdAt When the responses first version was first
-     *   saved to the database
-     * @param {Date} updatedAt When the responses most recent version was saved
-     *   to the database
-     * @param {array} history The history of the response, from newest to
-     *   oldest, where each item has a body (the string body after the edit
-     *   was made), who edited it (editedBy is an object with an id and
-     *   username field), when the edit occurred (editedAt), and the response
-     *   description after the edit (desc).
      */
     class ResponseWidget extends React.Component {
+        constructor(props) {
+            super(props);
+            this.state = {
+                loading: false,
+                body: null,
+                desc: null,
+                createdAt: null,
+                updatedAt: null,
+                historyLoaded: false,
+                historyLoading: false,
+                history: null
+            }
+        }
+
         render() {
             return React.createElement(
                 React.Fragment,
@@ -428,33 +431,37 @@ const ResponsesWidget = (function() {
                             updatedAt: this.props.updatedAt
                         }
                     ),
-                    React.createElement(
-                        ResponseHistory,
-                        {
-                            key: 'history',
-                            history: this.props.history
+                    (function() {
+                        if (this.state.historyLoaded) {
+                            if (this.state.history.length === 0) {
+                                return React.createElement(React.Fragment, null, null);
+                            }
+                            return React.createElement(
+                                ResponseHistory,
+                                {
+                                    key: 'history',
+                                    history: this.state.history
+                                }
+                            );
                         }
-                    )
+
+                        return React.createElement(
+                            Button,
+                            {
+                                key: 'history-load-btn',
+                                text: 'Load History',
+                                style: 'secondary',
+                                disabled: this.state.historyLoading
+                            }
+                        );
+                    }).bind(this)()
                 ]
             );
         }
     }
 
     ResponseWidget.propTypes = {
-        name: PropTypes.string.isRequired,
-        body: PropTypes.string.isRequired,
-        desc: PropTypes.string.isRequired,
-        createdAt: PropTypes.instanceOf(Date).isRequired,
-        updatedAt: PropTypes.instanceOf(Date).isRequired,
-        history: PropTypes.arrayOf(PropTypes.shape({
-            body: PropTypes.string.isRequired,
-            desc: PropTypes.string.isRequired,
-            editedBy: PropTypes.shape({
-                id: PropTypes.number.isRequired,
-                username: PropTypes.string.isRequired
-            }),
-            editedAt: PropTypes.instanceOf(Date).isRequired
-        })).isRequired
+        name: PropTypes.string.isRequired
     };
 
     /**
@@ -467,54 +474,198 @@ const ResponsesWidget = (function() {
             super(props);
 
             this.state = {
-                responses: [
-                    {
-                        name: 'foo_bar',
-                        body: 'This is <my> response',
-                        desc: 'This response is used when we foo the bar',
-                        createdAt: new Date(),
-                        updatedAt: new Date(),
-                        history: [
-                            {
-                                body: 'This was my response',
-                                desc: 'TODO desc',
-                                editedBy: {
-                                    id: 1,
-                                    username: 'Tjstretchalot'
-                                },
-                                editedAt: new Date()
-                            }
-                        ]
-                    }
-                ],
-                selectedResponseInd: 0
+                loading: true,
+                errored: false,
+                error: null,
+                addResponseAlert: null,
+                addResponseExpanded: false,
+                addResponseName: '',
+                addResponseBody: '',
+                addResponseDesc: '',
+                addResponseDisabled: false,
+                responses: [],
+                selectedResponseInd: null
             }
+
+            this.loadResponses(false);
+            this.addResponseNameGet = null;
+            this.addResponseBodyGet = null;
+            this.addResponseDescGet = null;
+            this.addResponseFocus = null;
+            this.addResponseRipFocus = false;
         }
 
         render() {
+            if(this.state.loading) {
+                return React.createElement(
+                    'div',
+                    null,
+                    'Loading...'
+                );
+            }
+
+            if(this.state.errored) {
+                return React.createElement(
+                    Alert,
+                    {
+                        title: this.state.error.title,
+                        text: this.state.error.text,
+                        type: 'error'
+                    }
+                );
+            }
+
+            if (this.state.responses.length > 0) {
+                return React.createElement(
+                    React.Fragment,
+                    null,
+                    [
+                        React.createElement(FormElement, {
+                                key: 'responses-choice',
+                                labelText: 'Select which response to view',
+                                component: DropDown,
+                                componentArgs: {
+                                    options: this.state.responses.map((resp) => {
+                                        return { key: resp.name, text: resp.name };
+                                    }),
+                                    initialOption: this.state.responses[this.state.selectedResponseInd].name
+                                }
+                            }
+                        ),
+                        React.createElement(ResponseWidget, (function() {
+                            let res = Object.assign({}, this.state.responses[this.state.selectedResponseInd]);
+                            res.key = 'response';
+                            return res;
+                        }).bind(this)()),
+                        this.createAddResponseSection()
+                    ]
+                );
+            }
+
+            return this.createAddResponseSection();
+        }
+
+        componentDidUpdate() {
+            this.considerFocus();
+        }
+
+        considerFocus() {
+            if(this.addResponseRipFocus) {
+                if(this.addResponseFocus) {
+                    this.addResponseRipFocus = false;
+                    this.addResponseFocus();
+                }else {
+                    console.log('Waiting on focus callbacks..');
+                    setTimeout(this.considerFocus.bind(this), 2000);
+                }
+            }
+        }
+
+        createAddResponseSection() {
+            if (!this.state.addResponseExpanded) {
+                return React.createElement(
+                    Button,
+                    {
+                        key: 'add-response',
+                        text: 'Add Response',
+                        type: 'button',
+                        style: 'secondary',
+                        onClick: (() => {
+                            this.setState(((state) => {
+                                this.addResponseRipFocus = true;
+                                let newState = Object.assign({}, state);
+                                newState.addResponseExpanded = true;
+                                return newState;
+                            }).bind(this));
+                        }).bind(this),
+                        focus: ((fcs) => this.addResponseFocus = fcs).bind(this)
+                    }
+                )
+            }
+
             return React.createElement(
                 React.Fragment,
-                null,
+                {key: 'add-response'},
                 [
-                    React.createElement(FormElement, {
-                            key: 'responses-choice',
-                            labelText: 'Select which response to view',
-                            component: DropDown,
+                    React.createElement(
+                        FormElement,
+                        {
+                            key: 'name',
+                            component: TextInput,
+                            labelText: 'New Response Name',
                             componentArgs: {
-                                options: this.state.responses.map((resp) => {
-                                    return { key: resp.name, text: resp.name };
-                                }),
-                                initialOption: this.state.responses[this.state.selectedResponseInd].name
+                                type: 'text',
+                                text: this.state.addResponseName,
+                                textQuery: ((gtr) => this.addResponseNameGet = gtr).bind(this),
+                                focus: ((fcs) => this.addResponseFocus = fcs).bind(this)
                             }
                         }
                     ),
-                    React.createElement(ResponseWidget, (function() {
-                        let res = Object.assign({}, this.state.responses[this.state.selectedResponseInd]);
-                        res.key = 'response';
-                        return res;
-                    }).bind(this)())
+                    React.createElement(
+                        Button,
+                        {
+                            key: 'cancel',
+                            text: 'Cancel',
+                            type: 'button',
+                            style: 'secondary',
+                            onClick: (() => {
+                                this.setState(((state) => {
+                                    this.addResponseRipFocus = true;
+                                    let newState = Object.assign({}, state);
+                                    newState.addResponseExpanded = false;
+                                    newState.addResponseName = this.addResponseNameGet();
+                                    return newState;
+                                }).bind(this));
+                            }).bind(this)
+                        }
+                    )
                 ]
-            );
+            )
+        }
+
+        loadResponses(bustCache) {
+            return api_fetch('/api/responses', AuthHelper.auth({
+                cache: bustCache ? 'no-cache' : 'default'
+            })).then((resp) => {
+                if(resp.status === 200) {
+                    return resp.json();
+                }
+
+                if(resp.status === 403) {
+                    return Promise.reject({
+                        title: 'No permission',
+                        text: (
+                            'You do not have permission to view responses. ' +
+                            'If you believe you should have permission, contact ' +
+                            'the moderators of /r/borrow by sending a message to ' +
+                            'the modmail.'
+                        )
+                    });
+                }
+
+                return Promise.reject({
+                    title: 'Failed to load responses',
+                    text: `${resp.status}: ${resp.statusText}`
+                });
+            }).then((json) => {
+                this.setState(((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.loading = false;
+                    newState.responses = json.responses;
+                    if(json.responses.length !== 0) {
+                        newState.responses.selectedResponseInd = 0;
+                    }
+                    return newState;
+                }));
+            }).catch(((error) => {
+                this.setState(((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.loading = false;
+                    newState.errored = true;
+                    newState.error = error;
+                    return newState;
+                }));
+            }).bind(this));
         }
     }
 
