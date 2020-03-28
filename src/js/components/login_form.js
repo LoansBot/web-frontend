@@ -120,12 +120,15 @@ const [LoginForm, LoginFormWithLogic] = (function() {
                 null,
                 (this.state.alert ? [
                     React.createElement(
-                        Alert,
+                        HeightEased,
                         {
                             key: 'alert',
-                            title: this.state.alert.title,
-                            type: this.state.alert.type,
-                            text: this.state.alert.text
+                            component: Alert,
+                            componentArgs: {
+                                title: this.state.alert.title,
+                                type: this.state.alert.type,
+                                text: this.state.alert.text
+                            }
                         }
                     )
                 ] : []).concat([

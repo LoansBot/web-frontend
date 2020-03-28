@@ -477,7 +477,9 @@ const ResponsesWidget = (function() {
                 loading: true,
                 errored: false,
                 error: null,
+                errorAnim: null,
                 addResponseAlert: null,
+                addResponseAlertAnim: null,
                 addResponseExpanded: false,
                 addResponseName: '',
                 addResponseBody: '',
@@ -488,6 +490,7 @@ const ResponsesWidget = (function() {
             }
 
             this.loadResponses(false);
+            this.addResponseWasExpanded = false;
             this.addResponseNameGet = null;
             this.addResponseBodyGet = null;
             this.addResponseDescGet = null;
@@ -506,11 +509,14 @@ const ResponsesWidget = (function() {
 
             if(this.state.errored) {
                 return React.createElement(
-                    Alert,
+                    HeightEased,
                     {
-                        title: this.state.error.title,
-                        text: this.state.error.text,
-                        type: 'error'
+                        component: Alert,
+                        componentArgs: {
+                            title: this.state.error.title,
+                            text: this.state.error.text,
+                            type: 'error'
+                        }
                     }
                 );
             }
@@ -547,6 +553,7 @@ const ResponsesWidget = (function() {
 
         componentDidUpdate() {
             this.considerFocus();
+            this.addResponseWasExpanded = this.state.addResponseExpanded;
         }
 
         considerFocus() {
@@ -556,71 +563,284 @@ const ResponsesWidget = (function() {
                     this.addResponseFocus();
                 }else {
                     console.log('Waiting on focus callbacks..');
-                    setTimeout(this.considerFocus.bind(this), 2000);
+                    setTimeout(this.considerFocus.bind(this), 500);
                 }
             }
         }
 
         createAddResponseSection() {
+            return React.createElement(
+                React.Fragment,
+                {key: 'add-response-section'},
+                [
+                    (function() {
+                        if(this.state.addResponseAlert === null) {
+                            return React.createElement(
+                                React.Fragment,
+                                {key: 'add-response-alert'}
+                            );
+                        }
+                        return React.createElement(
+                            HeightEased,
+                            {
+                                key: 'add-response-alert',
+                                component: Alert,
+                                componentArgs: {
+                                    title: this.state.addResponseAlert.title,
+                                    type: this.state.addResponseAlert.type,
+                                    text: this.state.addResponseAlert.text
+                                },
+                                style: this.state.addResponseAlertAnim
+                            }
+                        );
+                    }).bind(this)(),
+                    this.createAddResponseForm()
+                ]
+            )
+        }
+
+        createAddResponseForm() {
             if (!this.state.addResponseExpanded) {
                 return React.createElement(
-                    Button,
-                    {
-                        key: 'add-response',
-                        text: 'Add Response',
-                        type: 'button',
-                        style: 'secondary',
-                        onClick: (() => {
-                            this.setState(((state) => {
-                                this.addResponseRipFocus = true;
-                                let newState = Object.assign({}, state);
-                                newState.addResponseExpanded = true;
-                                return newState;
-                            }).bind(this));
-                        }).bind(this),
-                        focus: ((fcs) => this.addResponseFocus = fcs).bind(this)
-                    }
+                    React.Fragment,
+                    {key: 'add-response-minimized'},
+                    [
+                        React.createElement(
+                            HeightEased,
+                            {
+                                key: 'add-response-btn',
+                                style: this.addResponseWasExpanded ? 'expanding' : 'expanded',
+                                component: Button,
+                                componentArgs: {
+                                    text: 'Add Response',
+                                    type: 'button',
+                                    style: 'secondary',
+                                    onClick: (() => {
+                                        this.setState(((state) => {
+                                            this.addResponseRipFocus = true;
+                                            let newState = Object.assign({}, state);
+                                            newState.addResponseExpanded = true;
+                                            return newState;
+                                        }).bind(this));
+                                    }).bind(this),
+                                    focus: ((fcs) => this.addResponseFocus = fcs).bind(this)
+                                }
+                            }
+                        ),
+                        React.createElement(
+                            HeightEased,
+                            {
+                                key: 'add-response-expanded-minimizing',
+                                style: this.addResponseWasExpanded ? 'closing' : 'closed',
+                                component: React.Fragment,
+                                componentChildren: this.createResponseAddExpandedChildren(true)
+                            }
+                        )
+                    ]
                 )
             }
 
             return React.createElement(
                 React.Fragment,
-                {key: 'add-response'},
+                {key: 'add-response-expanded'},
                 [
                     React.createElement(
-                        FormElement,
+                        HeightEased,
                         {
-                            key: 'name',
-                            component: TextInput,
-                            labelText: 'New Response Name',
+                            key: 'add-response-btn-removing',
+                            style: this.addResponseWasExpanded ? 'closed' : 'closing',
+                            component: Button,
                             componentArgs: {
-                                type: 'text',
-                                text: this.state.addResponseName,
-                                textQuery: ((gtr) => this.addResponseNameGet = gtr).bind(this),
-                                focus: ((fcs) => this.addResponseFocus = fcs).bind(this)
+                                text: 'Add Response',
+                                disabled: true
                             }
                         }
                     ),
                     React.createElement(
-                        Button,
+                        HeightEased,
                         {
-                            key: 'cancel',
-                            text: 'Cancel',
-                            type: 'button',
-                            style: 'secondary',
-                            onClick: (() => {
-                                this.setState(((state) => {
-                                    this.addResponseRipFocus = true;
-                                    let newState = Object.assign({}, state);
-                                    newState.addResponseExpanded = false;
-                                    newState.addResponseName = this.addResponseNameGet();
-                                    return newState;
-                                }).bind(this));
-                            }).bind(this)
+                            key: 'add-response',
+                            style: this.addResponseWasExpanded ? 'expanded' : 'expanding',
+                            component: React.Fragment,
+                            componentChildren: this.createResponseAddExpandedChildren(false)
                         }
                     )
                 ]
-            )
+            );
+
+        }
+
+        createResponseAddExpandedChildren(fake) {
+            return [
+                React.createElement(
+                    FormElement,
+                    {
+                        key: 'name',
+                        component: TextInput,
+                        labelText: 'New Response Name',
+                        componentArgs: {
+                            type: 'text',
+                            text: this.state.addResponseName,
+                            textQuery: ((gtr) => this.addResponseNameGet = gtr).bind(this),
+                            focus: ((fcs) => {
+                                if(!fake)
+                                    this.addResponseFocus = fcs;
+                            }).bind(this)
+                        }
+                    }
+                ),
+                React.createElement(
+                    FormElement,
+                    {
+                        key: 'body',
+                        component: TextArea,
+                        labelText: 'New Response Body',
+                        componentArgs: {
+                            type: 'text',
+                            text: this.state.addResponseBody,
+                            textQuery: ((gtr) => this.addResponseBodyGet = gtr).bind(this)
+                        }
+                    }
+                ),
+                React.createElement(
+                    FormElement,
+                    {
+                        key: 'desc',
+                        component: TextArea,
+                        labelText: 'New Response Description',
+                        componentArgs: {
+                            text: this.state.addResponseDesc,
+                            textQuery: ((gtr) => this.addResponseDescGet = gtr).bind(this)
+                        }
+                    }
+                ),
+                React.createElement(
+                    Button,
+                    {
+                        key: 'submit',
+                        text: 'Add Response',
+                        type: 'button',
+                        style: 'primary',
+                        disabled: this.state.addResponseDisabled,
+                        onClick: (() => {
+                            this.setState((state) => {
+                                let newState = Object.assign({}, state);
+                                newState.addResponseDisabled = true;
+                                return newState;
+                            });
+
+                            this.addResponse();
+                        }).bind(this)
+                    }
+                ),
+                React.createElement(
+                    Button,
+                    {
+                        key: 'cancel',
+                        text: 'Cancel',
+                        type: 'button',
+                        style: 'secondary',
+                        onClick: (() => {
+                            this.setState(((state) => {
+                                let newState = Object.assign({}, state);
+                                newState.addResponseExpanded = false;
+                                newState.addResponseName = this.addResponseNameGet();
+                                newState.addResponseBody = this.addResponseBodyGet();
+                                newState.addResponseDesc = this.addResponseDescGet();
+                                return newState;
+                            }).bind(this));
+                            setTimeout((() => {
+                                this.addResponseFocus();
+                            }).bind(this), 500);
+                        }).bind(this)
+                    }
+                )
+            ];
+        }
+
+        addResponse() {
+            return api_fetch('/api/responses', AuthHelper.auth({
+                method: 'POST',
+                credentials: 'omit',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    name: this.state.addResponseName,
+                    body: this.state.addResponseBody,
+                    desc: this.state.addResponseDesc
+                })
+            })).then(((resp) => {
+                if(resp.status === 200) {
+                    return loadResponses(true);
+                }
+
+                if(resp.status === 403) {
+                    return Promise.reject({
+                        title: 'Forbidden',
+                        text: 'You do not have permission to access this endpoint'
+                    });
+                }else if(resp.status === 409) {
+                    return Promise.reject({
+                        title: 'Response Name Taken',
+                        text: 'A response with that name already exists'
+                    });
+                }else if(resp.status === 429) {
+                    console.log(resp.json());
+                    return Promise.reject({
+                        title: 'Client Error',
+                        text: 'The server rejected our arguments; the console may have more info.'
+                    });
+                }else if(resp.status === 500) {
+                    return Promise.reject({
+                        title: 'Internal Server Error',
+                        text: 'Something went wrong, and it may take a while to fix. Contact your system administrator.'
+                    });
+                }else if(resp.status === 503) {
+                    return Promise.reject({
+                        title: 'Temporarily Unavailable',
+                        text: 'The server is temporarily unable to service this request, possibly due to increased load. Try again later.'
+                    });
+                }else {
+                    console.log(resp);
+                    return Promise.reject({
+                        title: resp.statusText,
+                        text: `${resp.status}: ${resp.statusText}`
+                    });
+                }
+            }).bind(this)).then((() => {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.addResponseDisabled = false;
+                    newState.addResponseExpanded = false;
+                    return newState;
+                })
+            }).bind(this)).catch(((error) => {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.addResponseAlert = {
+                        title: error.title,
+                        text: error.text,
+                        type: 'error'
+                    }
+                    if(newState.addResponseAlertAnim === 'expanding' || newState.addResponseAlertAnim === 'expanded') {
+                        newState.addResponseAlertAnim = 'expanded';
+                    }else {
+                        newState.addResponseAlertAnim = 'expanding';
+                    }
+                    return newState;
+                });
+                console.log('queuing closing anim');
+                setTimeout((() => {
+                    this.setState((state) => {
+                        if(state.addResponseAlertAnim !== 'expanding' && state.addResponseAlertAnim !== 'expanded') {
+                            return state;
+                        }
+                        let newState = Object.assign({}, state);
+                        newState.addResponseAlertAnim = 'closing';
+                        newState.addResponseDisabled = false;
+                        return newState;
+                    });
+                }).bind(this), 5000);
+            }).bind(this))
         }
 
         loadResponses(bustCache) {
@@ -663,6 +883,7 @@ const ResponsesWidget = (function() {
                     newState.loading = false;
                     newState.errored = true;
                     newState.error = error;
+                    newState.errorAnim = 'expanding';
                     return newState;
                 }));
             }).bind(this));

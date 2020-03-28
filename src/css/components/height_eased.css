@@ -1,0 +1,6 @@
+.height-eased {
+    transition: max-height 0.3s, padding 0.3s, margin 0.3s;
+    overflow: hidden;
+    position: absolute;
+    left: -99999px;
+}
