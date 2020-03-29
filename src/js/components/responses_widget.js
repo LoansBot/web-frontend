@@ -427,6 +427,7 @@ const ResponsesWidget = (function() {
      *
      * @param {string} body The body of the response after the edit
      * @param {string} desc The description of the response after the edit
+     * @param {string} reason The reason for the edit
      * @param {object} editedBy Who edited the response, if known. Has two
      *   keys - id and username. This will be null if the user who originally
      *   made the edit was deleted.
@@ -512,7 +513,15 @@ const ResponsesWidget = (function() {
                                     key: 'response-edited-at-post',
                                     className: 'response-edited-at-post'
                                 },
-                                ' to '
+                                ' with the reason '
+                            ),
+                            React.createElement(
+                                'div',
+                                {
+                                    key: 'response-edited-reason',
+                                    className: 'response-edited-reason'
+                                },
+                                this.props.reason
                             )
                         ]
                     ),
@@ -546,6 +555,7 @@ const ResponsesWidget = (function() {
     ResponseEdit.propTypes = {
         body: PropTypes.string.isRequired,
         desc: PropTypes.string.isRequired,
+        reason: PropTypes.string.isRequired,
         editedBy: PropTypes.shape({
             id: PropTypes.number.isRequired,
             username: PropTypes.string.isRequired
@@ -558,7 +568,8 @@ const ResponsesWidget = (function() {
      * time, in order.
      *
      * @param {array} history The history of the response, from newest to
-     *   oldest, where each item has a body, desc, editedBy, and editedAt.
+     *   oldest, where each item has a body, desc, editedBy, editedAt,
+     *   and reason
      */
     class ResponseHistory extends React.Component {
         render() {
@@ -573,7 +584,8 @@ const ResponsesWidget = (function() {
                             body: itm.body,
                             desc: itm.desc,
                             editedBy: itm.editedBy,
-                            editedAt: itm.editedAt
+                            editedAt: itm.editedAt,
+                            reason: itm.reason
                         }
                     )
                 })
@@ -589,7 +601,8 @@ const ResponsesWidget = (function() {
                 id: PropTypes.number.isRequired,
                 username: PropTypes.string.isRequired
             }),
-            editedAt: PropTypes.instanceOf(Date).isRequired
+            editedAt: PropTypes.instanceOf(Date).isRequired,
+            reason: PropTypes.string.isRequired
         })).isRequired
     };
 
@@ -764,7 +777,8 @@ const ResponsesWidget = (function() {
                             body: itm.new_body,
                             desc: itm.new_desc,
                             editedBy: itm.edited_by,
-                            editedAt: new Date(itm.edited_at * 1000)
+                            editedAt: new Date(itm.edited_at * 1000),
+                            reason: itm.edited_reason
                         };
                     });
                     return newState;
