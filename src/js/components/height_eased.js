@@ -56,6 +56,9 @@ const HeightEased = (function() {
         }
 
         updateAnim() {
+            if(!this.element.current) {
+                return;
+            }
             if(this.props.style === this.animState) {
                 return;
             }
@@ -132,10 +135,12 @@ const HeightEased = (function() {
             }
 
             setTimeout((() => {
+                if(!this.element.current) { return; }
                 if(this.animState === 'closing') {
                     this.element.current.style.transition = realProps[0];
                     this.element.current.style.maxHeight = realProps[1];
                     setTimeout((() => {
+                        if(!this.element.current) { return; }
                         this.setClosed(true);
                     }).bind(this), 200); // larger is more reliable
                 }else {
@@ -144,10 +149,13 @@ const HeightEased = (function() {
                     this.element.current.style.position = 'static';
                     this.element.current.style.removeProperty('left');
                     setTimeout((() => {
+                        if(!this.element.current) { return; }
                         this.element.current.style.transition = realProps[0];
                         setTimeout((() => {
+                            if(!this.element.current) { return; }
                             this.setTo(realProps);
                             setTimeout((() => {
+                                if(!this.element.current) { return; }
                                 if(this.animState !== 'expanding') {
                                     return;
                                 }

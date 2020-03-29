@@ -52,6 +52,10 @@ const TextArea = (function() {
                 this.props.focus((() => this.textareaRef.current.focus()).bind(this));
             }
         }
+
+        componentDidUpdate() {
+            this.textareaRef.current.value = this.props.text;
+        }
     }
 
     TextArea.propTypes = {

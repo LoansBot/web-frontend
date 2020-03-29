@@ -36,6 +36,7 @@ form {
     padding: 8px 4px;
     font-size: larger;
     margin-top: 16px;
+    margin-bottom: 16px;
     transition: color 0.3s 0.4s, background-color 0.7s;
 }
 
