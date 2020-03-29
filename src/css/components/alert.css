@@ -4,8 +4,7 @@
     padding-left: 1em;
     padding-top: 1.5em;
     padding-bottom: 1.5em;
-    transition: max-height 0.3s, padding 0.3s;
-    overflow: hidden;
+    margin-bottom: 1em;
 }
 
 .alert-title {

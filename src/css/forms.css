@@ -28,8 +28,7 @@ form {
 }
 
 .text-input:focus {
-    border-color: blue;
-    border-width: 0.15em;
+    border: blue inset 0.16rem;
 }
 
 .button {
@@ -37,12 +36,12 @@ form {
     padding: 8px 4px;
     font-size: larger;
     margin-top: 16px;
+    margin-bottom: 16px;
     transition: color 0.3s 0.4s, background-color 0.7s;
 }
 
 .button:focus {
-    border-color: blue;
-    border-width: 0.15em;
+    border: blue inset 0.16rem;
 }
 
 .button:disabled {
@@ -63,7 +62,7 @@ form {
 }
 
 .checkbox:focus {
-    outline: blue solid 0.1em;
+    outline: blue solid 0.16rem;
 }
 
 .single-select {
@@ -74,7 +73,7 @@ form {
 }
 
 .single-select:focus {
-    border: blue solid 0.15em;
+    border: blue inset 0.16rem;
 }
 
 .datetime-picker {
@@ -85,5 +84,14 @@ form {
 }
 
 .datetime-picker:focus {
-    border: blue solid 0.15em;
+    border: blue inset 0.16rem;
+}
+
+.textarea {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.textarea:focus {
+    border: blue inset 0.16rem;
 }

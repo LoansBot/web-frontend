@@ -9,6 +9,8 @@ const Button = (function() {
      *   specified. Typically 'submit'
      * @param {function} onClick Called whenever this button is clicked; passed
      *   the click event.
+     * @param {function} focus A function which we call with a function which will
+     *   rip focus to this button
      * @param {bool} disabled True if this button should be rendered in the
      *   disabled state, false or null otherwise
      */
@@ -35,6 +37,10 @@ const Button = (function() {
             if(this.props.onClick) {
                 this.buttonRef.current.addEventListener('click', (e) => this.props.onClick(e));
             }
+
+            if(this.props.focus) {
+                this.props.focus((() => this.buttonRef.current.focus()).bind(this));
+            }
         }
     }
 
@@ -43,6 +49,7 @@ const Button = (function() {
         type: PropTypes.string,
         style: PropTypes.string,
         onClick: PropTypes.func,
+        focus: PropTypes.func,
         disabled: PropTypes.bool
     };
 
