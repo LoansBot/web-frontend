@@ -48,6 +48,10 @@
     margin-left: 1em;
 }
 
+.log-identifier {
+    margin-left: 0.25em;
+}
+
 .log-level {
     margin-left: 1em;
 }

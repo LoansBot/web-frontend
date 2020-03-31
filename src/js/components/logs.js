@@ -4,6 +4,7 @@ const LogFeedWithControlsAndLogic = (function() {
      *
      * @param {number} id The id from the server
      * @param {string} application The application name that made this log
+     * @param {string} identifier Where in the application made the log
      * @param {string} level The message severity, e.g, 'WARN'
      * @param {string} message The message
      * @param {Date} createdAt when the message was created
@@ -35,6 +36,14 @@ const LogFeedWithControlsAndLogic = (function() {
                     React.createElement(
                         'span',
                         {
+                            key: 'identifier',
+                            className: 'log-identifier'
+                        },
+                        this.props.identifier
+                    ),
+                    React.createElement(
+                        'span',
+                        {
                             key: 'level',
                             className: `log-level log-level-${this.props.level}`,
                             aria_hidden: 'true'
@@ -57,6 +66,7 @@ const LogFeedWithControlsAndLogic = (function() {
     LogItem.propTypes = {
         id: PropTypes.number.isRequired,
         application: PropTypes.string.isRequired,
+        identifier: PropTypes.string.isRequired,
         level: PropTypes.string.isRequired,
         message: PropTypes.string.isRequired,
         createdAt: PropTypes.object.isRequired
@@ -426,6 +436,7 @@ const LogFeedWithControlsAndLogic = (function() {
                     return {
                         id: elm.id,
                         application: app,
+                        identifier: elm.identifier,
                         level: LOG_LEVEL_TO_NAME[elm.level],
                         message: elm.message,
                         createdAt: new Date(elm.created_at * 1000)
