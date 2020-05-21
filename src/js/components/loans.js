@@ -1,6 +1,6 @@
 const [
     LoanSummary, LoanSummaryAjax, LoanList, LoanListAjax, LoanDetails,
-    LoanDetailsAjax, LoanSummaryWithClickToModal, LoanFilterForm,
+    LoanDetailsAjax, LoanSummaryWithClickToDetails, LoanFilterForm,
     LoanFilterFormWithList
 ] = (function() {
     /**
@@ -8,9 +8,41 @@ const [
      * borrower, principal, principal repaid, unpaid status, and a sense of
      * recency.
      *
-     * This is a pure style component. To wrap this with an ajax call and a
-     * spinner use LoanSummaryAjax
+     * This uses a background color of light green for completed, light red
+     * for unpaid, and dark blue for in progress. This gives a fairly familiar
+     * feeling for regular vision users while still being distinguishable on
+     * up to achromatopsia at which point it still provides the most important
+     * distinguishment between in progress and not inprogress (dark blue vs
+     * light green or light red). The light green and light red aren't super
+     * different on protonopia but with only 2 "light" options they don't have
+     * to be that different to be interpretable (i.e., it's not a gradient
+     * situation), there is still prominent text to provide this information,
+     * and the more important distinction is between in progress / not in
+     * progress which is extremely clear.
      *
+     * We use font size of at least 18pt / 24px and at least 4.5:1 contrast
+     * for the dark-blue background with dark text, as is required for
+     * WCAG AAA.
+     *
+     * This is a pure style component. To wrap this with an ajax call and a
+     * spinner use LoanSummaryAjax.
+     *
+     * Dates are specified in a relative format at a minimum of hour-level
+     * granularity (e.g., "7 days 16 hours ago"). After 10 days it switched
+     * to a timestamp format (Jan 1st, 2020 at 04:45 PM) to avoid the message
+     * getting too long.
+     *
+     * This supports keyboard-only navigation. Arrow key navigation will be
+     * used to jump between elements within this component unless an element
+     * is focused which uses arrows, in which this will allow tab/shift tab
+     * to jump between elements within this component. Left/right/up/down will
+     * all be selected as is visually appropriate.
+     *
+     * @param {function} focusQuery A function which we call with a function
+     *   which accepts no arguments and returns true if this component (or
+     *   any of its children) is focused and false otherwise.
+     * @param {function} focusSet A function which we call with a function
+     *   which accepts not arguments and rips focus to this component.
      * @param {boolean} showRefreshButton If true a refresh button is displayed
      *   which when clicked triggers onRefresh. This should reload the content
      *   of this loan summary. It's important that even if the content does not
@@ -81,6 +113,11 @@ const [
      * It is not necessary or helpful to cache this component; the ajax call
      * itself will be appropriately cached.
      *
+     * @param {function} focusQuery A function which we call with a function
+     *   which accepts no arguments and returns true if this component (or
+     *   any of its children) is focused and false otherwise.
+     * @param {function} focusSet A function which we call with a function
+     *   which accepts not arguments and rips focus to this component.
      * @param {integer} loanId The id of the loan that should be loaded into a
      *   loan summary.
      */
@@ -96,9 +133,22 @@ const [
      * This is a pure style component. To wrap this with an ajax call and a
      * spinner use LoanDetailsAjax.
      *
-     * This is typically displayed in a modal which is loaded when a user clicks
-     * a loan summary (see LoanSummaryWithClickToModal).
+     * This is typically displayed only by explicit request, ie., a user clicks
+     * a loan summary (see LoanSummaryWithClickToDetails).
      *
+     * This uses arrow-key navigation within components unless a component is
+     * focused which itself uses the arrow keys, in which case this will allow
+     * tab/shift-tab to jump between components within this. This will
+     * optionally show a button to minimize.
+     *
+     * @param {function} focusQuery A function which we call with a function
+     *   which accepts no arguments and returns true if this component (or
+     *   any of its children) is focused and false otherwise.
+     * @param {function} focusSet A function which we call with a function
+     *   which accepts not arguments and rips focus to this component.
+     * @param {function} onMinimize If not null a minimize button will be shown
+     *   and this function will be triggered if it's clicked. This should not
+     *   be the only way to minimize a component.
      * @param {boolean} showRefreshButton If true a refresh button is displayed
      *   which when clicked triggers onRefresh. This should reload the content
      *   of this loan summary. It's important that even if the content does not
@@ -124,7 +174,8 @@ const [
      *       loan admin event privileged details, this will be the username of
      *       the admin which edited this event or '<deleted>' if the admin
      *       account has been deleted. Otherwise, when our access doesn't have
-     *       permission to this field, this is null.
+     *       permission to this field, this is null (and we just display a
+     *       generic contact the moderators if you have questions link)
      *     - {string, null} reason If our account has permission to this field
      *       this will be the reason that the admin put in for making this edit.
      *       Otherwise, if our account doesn't have permission to this field,
@@ -212,6 +263,13 @@ const [
      * component. This essentially allows creating a loan details component
      * from just a loan id. It is not necessary or helpful to cache this
      * component; the ajax call itself will be appropriately cached.
+     *
+     * @param {function} focusQuery A function which we call with a function
+     *   which accepts no arguments and returns true if this component (or
+     *   any of its children) is focused and false otherwise.
+     * @param {function} focusSet A function which we call with a function
+     *   which accepts not arguments and rips focus to this component.
+     * @param {integer} loanId The id of the loan to display details for.
      */
     class LoanDetailsAjax extends React.Component {
 
@@ -219,17 +277,61 @@ const [
 
     /**
      * This is the most typical way to expose a loan summary. This is loaded
-     * completely with ajax, displays a loan summary, and when clicked pops
-     * up a modal with the loan details.
+     * completely with ajax, displays a loan summary, and when clicked swaps
+     * from summary view to detail view. It then handles navigation back to
+     * summary view.
+     *
+     * @param {function} focusQuery A function which we call with a function
+     *   which accepts no arguments and returns true if this component (or
+     *   any of its children) is focused and false otherwise.
+     * @param {function} focusSet A function which we call with a function
+     *   which accepts not arguments and rips focus to this component.
+     * @param {integer} loanId The id of the loan which this should load and
+     *   display
      */
-    class LoanSummaryWithClickToModal extends React.Component {
+    class LoanSummaryWithClickToDetails extends React.Component {
 
     };
 
     /**
-     * Displays a list of loan summaries where clicking one pops up a modal
-     * with additional details. This does not handle deciding what loans
+     * Displays a list of loan summaries where clicking one toggles between
+     * summary and detail view. This does not handle deciding what loans
      * should go in the list.
+     *
+     * As is true with all ajax queries which we anticipate client-side
+     * caching on we allow the client to hit a refresh button to cache-bust.
+     * We also assume that listings might be paginated and provide a show
+     * more button.
+     *
+     * This supports keyboard-only navigation. For minimized loans, up/down
+     * will move between loans and space to expand. For expanded loans,
+     * left/right/up/down navigates within the loan and tab/shift tab move
+     * between loans. There's a button to minimize which can be selected
+     * (focus + space) to minimize. Whenever a loan (or any component
+     * within which doesn't use home/end itself) is focused, Home/End will
+     * minimize if not already minimized and otherwise jump to the first/last
+     * loan in the list respectively.
+     *
+     * @param {function} focusQuery A function which we call with a function
+     *   which accepts no arguments and returns true if this component (or
+     *   any of its children) is focused and false otherwise.
+     * @param {function} focusSet A function which we call with a function
+     *   which accepts not arguments and rips focus to this component.
+     * @param {Array<integer>} loanIds A possibly empty array of loan ids which
+     *   should be displayed in this list
+     * @param {boolean} showRefreshButton True to show a button for reloading
+     *   which items belongs in this list, false not to.
+     * @param {function} onRefresh A function which is called when the refresh
+     *   list contents button is pressed.
+     * @param {boolean} refreshDisabled No meaning unless showRefreshButton is
+     *   true. Sets the disabled state on the refresh button.
+     * @param {boolean} showSeeMore True to show a button for loading additional
+     *   loans, false not to show a see more button (usually because there is
+     *   no more content)
+     * @param {function} onSeeMore This function is called when see more is
+     *   clicked
+     * @param {boolean} seeMoreDisabled No meaning unless showSeeMore is true.
+     *   Sets the disabled state on the see more button.
      */
     class LoanList extends React.Component {
 
@@ -240,8 +342,20 @@ const [
      * populate a loan list. The ajax call is always to the standard loans
      * index endpoint, but the parameters are as specified.
      *
+     * This will always show a refresh button.
+     *
+     * @param {function} focusQuery A function which we call with a function
+     *   which accepts no arguments and returns true if this component (or
+     *   any of its children) is focused and false otherwise.
+     * @param {function} focusSet A function which we call with a function
+     *   which accepts not arguments and rips focus to this component.
      * @param {object} parameters The query parameters to the loans index
-     *   endpoint.
+     *   endpoint. Should not include any pagination parameters such as
+     *   limit, minId, and maxId
+     * @param {integer} pageSize The target size per page. This uses
+     *   key-space pagination, meaning it's not in general possible to get
+     *   to jump pages and this has to do a reasonable amount of deduplication
+     *   logic.
      */
     class LoanListAjax extends React.Component {
 
@@ -252,6 +366,79 @@ const [
      * exposes the values on all the fields. This doesn't actually do anything
      * with this information and is mainly intended for styling and client-side
      * validation/feedback.
+     *
+     * This has a collapsed and expanded mode. In collapsed mode it displays
+     * either the preset name or the word "Custom" as a dropdown for selecting
+     * presets, and a button for "Advanced" to expand. The presets available
+     * are
+     *
+     * - "My Inprogress Loans"
+     * - "My Loans"
+     * - "All Loans"
+     *
+     * In expanded mode it expands the height of the component (not a popup)
+     * and shows the following in order of prominence:
+     *
+     * - The preset name or the word "Custom" as a dropdown for selecting presets
+     * - A button for "Basic" to minimize
+     * - A "lender" field and a "borrower" field with a dropdown in between them
+     *   which chooses between "AND" (the default) or "OR". In the "AND" state
+     *   both need to match, in the OR state either one needs to match. (Empty
+     *   fields handled separately. Both empty -> always true. One empty ->
+     *   choose most restrictive option that it's possible for loans to meet)
+     * - A dropdown for "Repaid Only", "Unpaid Only", "Inprogress Only", "All Statuses"
+     * - Any already applied custom fields
+     * - If there are are more custom fields, a dropdown containing:
+     *   + Loan ID
+     *   + Creation Date
+     *   + Currency
+     *   + Limit
+     *   + Include Deleted? (admin only)
+     *
+     * This supports keyboard-only navigation. When a component which doesn't
+     * use arrow keys is focused, tab will jump past this component and arrow
+     * keys can be used to jump within this component. When a component which
+     * uses arrow keys is focused, tab will jump to the component and arrow
+     * keys will manipulate the component. Left/right/up/down acts as is
+     * visually appropriate. Home minimizes the filter (if expanded) and
+     * focuses the preset. End expands the filter (if minimized) and focuses
+     * the first basic option. Space is always used for button selection.
+     *
+     * @param {function} focusQuery A function which we call with a function
+     *   which accepts no arguments and returns true if this component (or
+     *   any of its children) is focused and false otherwise.
+     * @param {function} focusSet A function which we call with a function
+     *   which accepts not arguments and rips focus to this component.
+     * @param {boolean} includeDeletedOption If true, the Include Deleted?
+     *   bonus field will be visible. Otherwise, if false, the Include
+     *   Deleted? bonus field will not be visible.
+     * @param {function} onFiltersChanged A function which we call with no
+     *   arguments whenever the filters change. Should be careful not to make
+     *   too many requests to the server; it's usually a good idea to wait
+     *   until there haven't been any changes for 1-3 seconds before making
+     *   a request.
+     * @param {function} filterQuery A function which we call after render
+     *   with a function which returns the currently selected filters as
+     *   an object with the following key/value pairs
+     *   {string} lenderUsername If not null then only loans which have
+     *     lenders which match this query (or meet the borrower query if the
+     *     lenderBorrowerOperator is OR) should be returned. Should be a
+     *     prefix match unless surrounded with quotes, in which case the quotes
+     *     should be ignored and this should be an exact match.
+     *   {string} borrowerUsername Similar to lenderUsername but for borrowers.
+     *   {string} lenderBorrowerOperator Acts as an enum and decides if we need
+     *     both lender and borrower to match ("AND") or only one to match ("OR")
+     *   {integer} id If not null only loans which have exactly the specified id
+     *     should be returned.
+     *   {Date} createdAfter If not null only loans created after this date
+     *     should be returned
+     *   {Date} createdBefore If not null only loans created before this date
+     *     should be returned
+     *   {string} currency If not null only loans with this currency should be
+     *     returned
+     *   {integer} limit If not null, the number of loans the user wants to get.
+     *   {boolean} includeDeleted If true deleted loans should be included,
+     *     otherwise no deleted loans should be included.
      */
     class LoanFilterForm extends React.Component {
 
@@ -259,6 +446,27 @@ const [
 
     /**
      * Displays a loan filter form and uses it to fill a loan list.
+     * This will provide all the expected features:
+     * - 3-tier filters (Presets -> Basic -> Advanced) to prevent the interface
+     *   from becoming overwhelming.
+     * - Changing the filter form will get immediate feedback in the listing
+     * - Refresh the list or an individual loan
+     * - Defaults to summary views, click to expand loans and click again to
+     *   minimize
+     * - Background colors highlight the state of the loan. Colors selected to
+     *   ensure more critical distinctions are clear to all major color
+     *   blindness types.
+     * - Intelligent keyboard navigation (Smart tabs, arrow navigation, context
+     *   sensitivity)
+     * - Key-space pagination
+     * - WCAG-AAA contrast throughout.
+     * - Mobile friendly design
+     *
+     * @param {function} focusQuery A function which we call with a function
+     *   which accepts no arguments and returns true if this component (or
+     *   any of its children) is focused and false otherwise.
+     * @param {function} focusSet A function which we call with a function
+     *   which accepts not arguments and rips focus to this component.
      */
     class LoanFilterFormWithList extends React.Component {
 
@@ -266,7 +474,7 @@ const [
 
     return [
         LoanSummary, LoanSummaryAjax, LoanList, LoanListAjax, LoanDetails,
-        LoanDetailsAjax, LoanSummaryWithClickToModal, LoanFilterForm,
+        LoanDetailsAjax, LoanSummaryWithClickToDetails, LoanFilterForm,
         LoanFilterFormWithList
     ];
 })();
