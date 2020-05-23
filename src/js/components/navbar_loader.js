@@ -93,7 +93,7 @@ const NavbarLoader = (function() {
         setNotLoggedInState(mounted) {
             let newState = {
                 loading: false,
-                show: ['home', [
+                show: ['home', 'loans', [
                     'Account',
                     'Open account management secondary navbar',
                     ['login', 'signup', 'forgot-password']
@@ -111,7 +111,7 @@ const NavbarLoader = (function() {
             let usern = username ? username : this.state.username;
             let perms = permissions ? permissions : this.state.permissions;
 
-            let show = ['home'];
+            let show = ['home', 'loans'];
             if(perms) {
                 for(var i = 0, len = perms.length; i < len; i++) {
                     let itm = this.permToNavItem(perms[i]);
@@ -166,6 +166,13 @@ const NavbarLoader = (function() {
                     current: current,
                     url: '/'
                 };
+            }else if(name === 'loans') {
+                return {
+                    name: 'Loans',
+                    ariaLabel: 'Navigate to the search loans page',
+                    current: current,
+                    url: '/loans.html'
+                }
             }else if(name === 'login') {
                 return {
                     name: 'Login',

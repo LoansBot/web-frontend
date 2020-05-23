@@ -43,43 +43,227 @@ const [
      *   any of its children) is focused and false otherwise.
      * @param {function} focusSet A function which we call with a function
      *   which accepts not arguments and rips focus to this component.
-     * @param {boolean} showRefreshButton If true a refresh button is displayed
+     * @param {bool} showRefreshButton If true a refresh button is displayed
      *   which when clicked triggers onRefresh. This should reload the content
      *   of this loan summary. It's important that even if the content does not
      *   change there is a visual indicator of success, which is usually done by
      *   swapping this to a spinner or disabling the refresh button.
      * @param {function} onRefresh Only ever called if showRefreshButton is true.
      *   Invoked when the refresh button is clicked.
-     * @param {boolean} refreshDisabled If showRefreshButton is false this has no
+     * @param {bool} refreshDisabled If showRefreshButton is false this has no
      *   effect. Otherwise, if this is true, the refresh button is given the
      *   disabled state and if false the refresh button is not given the disabled
      *   state.
+     * @param {function} onDetails Called when the details button is clicked.
      * @param {string} lender The username of the lender
      * @param {string} borrower The username of the borrower
-     * @param {string} currency_code The uppercase ISO4217 currency code this
+     * @param {string} currencyCode The uppercase ISO4217 currency code this
      *  loan is stored in.
-     * @param {string} currency_symbol The symbol for the currency, e.g., '$'
-     * @param {boolean} currency_symbol_on_left True if the currency symbol
+     * @param {string} currencySymbol The symbol for the currency, e.g., '$'
+     * @param {bool} currencySymbolOnLeft True if the currency symbol
      *  should be on the left, false if the currency symbol should be on the
      *  right.
-     * @param {integer} currency_exponent The exponent of the currency the loan
+     * @param {integer} currencyExponent The exponent of the currency the loan
      *   is in. For example, the smallest U.S. denomination is 1 cent. There
      *   are 100 = 10^2 cents in 1 U.S.D. So the U.S. dollar has an exponent of
      *   2. On the other hand, JPY has no minor currency so the "minor" integer
      *   amount is really the same as the major (1 = 10^0) so the exponent is
      *   0.
-     * @param {integer} principal_minor The principal of the loan in the minor
+     * @param {integer} principalMinor The principal of the loan in the minor
      *   unit
-     * @param {integer} principal_repayment_minor The principal repayment of
+     * @param {integer} principalRepaymentMinor The principal repayment of
      *   the loan in the minor unit.
      * @param {Date} createdAt When the loan was first created
+     * @param {Date} lastRepaidAt When money was last put toward repaying this loan
      * @param {Date, null} repaidAt When the loan was completely repaid. Should
      *   only be set if the principal and principal repayment are equal.
      * @param {Date, null} unpaidAt When the loan was marked as unapid. Should
      *   only be set if the principal is less than the principal repayment.
      */
     class LoanSummary extends React.Component {
+        render() {
+            var loanState = 'inprogress';
+            if (this.props.repaidAt) {
+                loanState = 'repaid';
+            } else if (this.props.unpaidAt) {
+                loanState = 'unpaid';
+            }
 
+            return React.createElement(
+                'div',
+                {className: `loan loan-summary loan-${loanState}`},
+                [
+                    React.createElement(
+                        'div',
+                        {key: 'created-at', className: 'loan-row'},
+                        React.createElement(
+                            'span',
+                            {key: 'creation-time', className: 'loan-created-at'},
+                            React.createElement(
+                                TextDateTime,
+                                {time: this.props.createdAt}
+                            )
+                        )
+                    ),
+                    React.createElement(
+                        'div',
+                        {key: 'involved', className: 'loan-row loan-involved'},
+                        [
+                            React.createElement(
+                                'span',
+                                {key: 'lender', className: 'loan-lender'},
+                                `/u/${this.props.lender}`
+                            ),
+                            React.createElement(
+                                'span',
+                                {key: 'arrow', className: 'loan-involved-arrow'},
+                                '->'
+                            ),
+                            React.createElement(
+                                'span',
+                                {key: 'borrower', className: 'loan-borrower'},
+                                `/u/${this.props.borrower}`
+                            )
+                        ]
+                    ),
+                    React.createElement(
+                        'div',
+                        {key: 'principal', className: 'loan-row'},
+                        [
+                            React.createElement(
+                                'span',
+                                {key: 'principal', className: 'loan-principal'},
+                                React.createElement(
+                                    Money,
+                                    {
+                                        currencyCode: this.props.currencyCode,
+                                        currencySymbol: this.props.currencySymbol,
+                                        currencySymbolOnLeft: this.props.currencySymbolOnLeft,
+                                        currencyExponent: this.props.currencyExponent,
+                                        minor: this.props.principalMinor
+                                    }
+                                )
+                            )
+                        ]
+                    ),
+                    React.createElement(
+                        'div',
+                        {key: 'repayment', className: 'loan-row'},
+                        [
+                            React.createElement(
+                                'span',
+                                {key: 'amt', className: 'loan-repayment-amount'},
+                                React.createElement(
+                                    Money,
+                                    {
+                                        currencyCode: this.props.currencyCode,
+                                        currencySymbol: this.props.currencySymbol,
+                                        currencySymbolOnLeft: this.props.currencySymbolOnLeft,
+                                        currencyExponent: this.props.currencyExponent,
+                                        minor: this.props.principalRepaymentMinor
+                                    }
+                                )
+                            ),
+                            React.createElement(
+                                'span',
+                                {key: 'txt', className: 'loan-repayment-text'},
+                                'repaid so far'
+                            )
+                        ]
+                    ),
+                    (
+                        this.props.lastRepaidAt ? React.createElement(
+                            'div',
+                            {key: 'last-repaid-at', className: 'loan-row'},
+                            [
+                                React.createElement(
+                                    'span',
+                                    {key: 'txt', className: 'loan-last-repayment-text'},
+                                    'Last repayment'
+                                ),
+                                React.createElement(
+                                    'span',
+                                    {key: 'time', className: 'loan-last-repayment-timestr'},
+                                    React.createElement(
+                                        TextDateTime,
+                                        {
+                                            time: this.props.lastRepaidAt
+                                        }
+                                    )
+                                )
+                            ]
+                        ) : React.createElement(
+                            React.Fragment,
+                            {key: 'last-repaid-at'}
+                        )
+                    ),
+                    React.createElement(
+                        'div',
+                        {key: 'unpaid', className: 'loan-row'},
+                        React.createElement(
+                            'span',
+                            {className: (this.props.unpaidAt ? 'loan-unpaid-text' : 'loan-not-unpaid-text')},
+                            this.props.unpaidAt ? 'Marked unpaid' : 'Not marked unpaid'
+                        )
+                    ),
+                    React.createElement(
+                        'div',
+                        {key: 'buttons', className: 'loan-row'},
+                        React.createElement(
+                            'span',
+                            {className: 'loan-buttons loan-buttons-' + (this.props.showRefreshButton ? '2' : '1')},
+                            (
+                                this.props.showRefreshButton ? [
+                                    React.createElement(
+                                        Button,
+                                        {
+                                            key: 'refresh',
+                                            text: 'Refresh',
+                                            style: 'secondary',
+                                            type: 'button',
+                                            onClick: this.props.onRefresh,
+                                            disabled: this.props.refreshDisabled
+                                        }
+                                    )
+                                ] : []
+                            ).concat([
+                                React.createElement(
+                                    Button,
+                                    {
+                                        key: 'details',
+                                        text: 'Details',
+                                        style: 'primary',
+                                        type: 'button',
+                                        onClick: this.props.onDetails
+                                    }
+                                )
+                            ])
+                        )
+
+                    )
+                ]
+            )
+        }
+    };
+
+    LoanSummary.propTypes = {
+        focusQuery: PropTypes.func,
+        focusSet: PropTypes.func,
+        showRefreshButton: PropTypes.bool.isRequired,
+        onRefresh: PropTypes.func,
+        refreshDisabled: PropTypes.bool.isRequired,
+        lender: PropTypes.string.isRequired,
+        borrower: PropTypes.string.isRequired,
+        currencyCode: PropTypes.string.isRequired,
+        currencySymbol: PropTypes.string.isRequired,
+        currencySymbolOnLeft: PropTypes.bool.isRequired,
+        currencyExponent: PropTypes.number.isRequired,
+        principalMinor: PropTypes.number.isRequired,
+        principalRepaymentMinor: PropTypes.number.isRequired,
+        createdAt: PropTypes.instanceOf(Date).isRequired,
+        lastRepaidAt: PropTypes.instanceOf(Date),
+        repaidAt: PropTypes.instanceOf(Date),
+        unpaidAt: PropTypes.instanceOf(Date)
     };
 
     /**
@@ -149,14 +333,14 @@ const [
      * @param {function} onMinimize If not null a minimize button will be shown
      *   and this function will be triggered if it's clicked. This should not
      *   be the only way to minimize a component.
-     * @param {boolean} showRefreshButton If true a refresh button is displayed
+     * @param {bool} showRefreshButton If true a refresh button is displayed
      *   which when clicked triggers onRefresh. This should reload the content
      *   of this loan summary. It's important that even if the content does not
      *   change there is a visual indicator of success, which is usually done by
      *   swapping this to a spinner or disabling the refresh button.
      * @param {function} onRefresh Only ever called if showRefreshButton is true.
      *   Invoked when the refresh button is clicked.
-     * @param {boolean} refreshDisabled If showRefreshButton is false this has no
+     * @param {bool} refreshDisabled If showRefreshButton is false this has no
      *   effect. Otherwise, if this is true, the refresh button is given the
      *   disabled state and if false the refresh button is not given the disabled
      *   state.
@@ -227,14 +411,14 @@ const [
      *     - {integer} repayment_minor The amount that was repaid, in the loan
      *       currency minor units.
      *   For unpaid events:
-     *     - {boolean} True if this was marking the loan unpaid, false if it
+     *     - {bool} True if this was marking the loan unpaid, false if it
      *       was removing the unpaid flag.
      * @param {string} lender The username of the lender
      * @param {string} borrower The username of the borrower
      * @param {string} currency_code The uppercase ISO4217 currency code this
      *  loan is stored in.
      * @param {string} currency_symbol The symbol for the currency, e.g., '$'
-     * @param {boolean} currency_symbol_on_left True if the currency symbol
+     * @param {bool} currency_symbol_on_left True if the currency symbol
      *  should be on the left, false if the currency symbol should be on the
      *  right.
      * @param {integer} currency_exponent The exponent of the currency the loan
@@ -319,18 +503,18 @@ const [
      *   which accepts not arguments and rips focus to this component.
      * @param {Array<integer>} loanIds A possibly empty array of loan ids which
      *   should be displayed in this list
-     * @param {boolean} showRefreshButton True to show a button for reloading
+     * @param {bool} showRefreshButton True to show a button for reloading
      *   which items belongs in this list, false not to.
      * @param {function} onRefresh A function which is called when the refresh
      *   list contents button is pressed.
-     * @param {boolean} refreshDisabled No meaning unless showRefreshButton is
+     * @param {bool} refreshDisabled No meaning unless showRefreshButton is
      *   true. Sets the disabled state on the refresh button.
-     * @param {boolean} showSeeMore True to show a button for loading additional
+     * @param {bool} showSeeMore True to show a button for loading additional
      *   loans, false not to show a see more button (usually because there is
      *   no more content)
      * @param {function} onSeeMore This function is called when see more is
      *   clicked
-     * @param {boolean} seeMoreDisabled No meaning unless showSeeMore is true.
+     * @param {bool} seeMoreDisabled No meaning unless showSeeMore is true.
      *   Sets the disabled state on the see more button.
      */
     class LoanList extends React.Component {
@@ -409,7 +593,7 @@ const [
      *   any of its children) is focused and false otherwise.
      * @param {function} focusSet A function which we call with a function
      *   which accepts not arguments and rips focus to this component.
-     * @param {boolean} includeDeletedOption If true, the Include Deleted?
+     * @param {bool} includeDeletedOption If true, the Include Deleted?
      *   bonus field will be visible. Otherwise, if false, the Include
      *   Deleted? bonus field will not be visible.
      * @param {function} onFiltersChanged A function which we call with no
@@ -437,7 +621,7 @@ const [
      *   {string} currency If not null only loans with this currency should be
      *     returned
      *   {integer} limit If not null, the number of loans the user wants to get.
-     *   {boolean} includeDeleted If true deleted loans should be included,
+     *   {bool} includeDeleted If true deleted loans should be included,
      *     otherwise no deleted loans should be included.
      */
     class LoanFilterForm extends React.Component {

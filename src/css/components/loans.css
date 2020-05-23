@@ -1,0 +1,42 @@
+.loan {
+    display: block;
+    font-size: 14pt;
+    color: #000;
+}
+
+.loan-inprogress {
+    /* DARK, BLUE */
+    background-color: #3399FF;
+}
+
+.loan-unpaid {
+    /* MEDIUM, RED */
+    background-color: rgb(255, 154, 154);
+}
+
+.loan-repaid {
+    /* LIGHT, GREEN */
+    background-color: rgb(214, 255, 214);
+}
+
+.loan-buttons-2 {
+    display: flex;
+}
+
+
+@media only screen and (max-width: 551px) {
+    .loan {
+        border-bottom: 2px dashed black;
+        border-top: 2px dashed black;
+        padding: 0 6px;
+    }
+}
+
+@media only screen and (min-width: 552px) {
+    .loan {
+        padding: 6px 6px;
+        border: 1px solid black;
+        border-radius: 4px;
+        margin-bottom: 12px;
+    }
+}
