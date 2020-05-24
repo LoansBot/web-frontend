@@ -116,8 +116,11 @@ const [
                             ),
                             React.createElement(
                                 'span',
-                                {key: 'arrow', className: 'loan-involved-arrow'},
-                                '->'
+                                {
+                                    key: 'arrow',
+                                    className: 'loan-involved-arrow',
+                                    dangerouslySetInnerHTML: { __html: '&rarr;' }
+                                }
                             ),
                             React.createElement(
                                 'span',

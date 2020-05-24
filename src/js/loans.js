@@ -8,7 +8,7 @@ ReactDOM.render(
                 lender: 'foobar',
                 borrower: 'barbaz',
                 currencyCode: 'EUR',
-                principalMinor: 31459,
+                principalMinor: 31400,
                 principalRepaymentMinor: 7639,
                 createdAt: new Date(new Date().getTime() - 1000 * 60 * 60 * (24 * 3 + 7)),
                 lastRepaidAt: new Date(new Date().getTime() - 1000 * 60 * 60 * 18)
