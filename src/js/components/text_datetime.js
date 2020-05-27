@@ -65,7 +65,17 @@ const TextDateTime = (function() {
                     text = 'in ' + absRelText;
                 }
             }else {
-                let myFormat = new Intl.DateTimeFormat('default', { month: 'long' });
+                let myFormat = new Intl.DateTimeFormat(
+                    'default',
+                    {
+                        weekday: 'long',
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: 'numeric',
+                        minute: 'numeric',
+                        second: 'numeric'
+                    });
                 text = myFormat.format(this.props.time);
             }
 

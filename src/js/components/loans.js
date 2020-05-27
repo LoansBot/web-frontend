@@ -242,7 +242,6 @@ const [
                                 )
                             ])
                         )
-
                     )
                 ]
             )
@@ -351,7 +350,7 @@ const [
      * @param {list} events The events that occurred to this loan in
      *   chronological order. each event is an object with the following
      *   keys:
-     *     - {string} event_type Acts as an enum to identify the type of
+     *     - {string} eventType Acts as an enum to identify the type of
      *         event this is. Takes one of the following values and determines
      *         the rest of the keys (and their meanings): "admin", "creation",
      *         "repayment", "unpaid"
@@ -411,37 +410,663 @@ const [
      *     - {string} creationPermalink If the creationType is 0, this will be
      *       the permalink to the $loan command.
      *   For repayment events:
-     *     - {integer} repayment_minor The amount that was repaid, in the loan
+     *     - {integer} repaymentMinor The amount that was repaid, in the loan
      *       currency minor units.
      *   For unpaid events:
-     *     - {bool} True if this was marking the loan unpaid, false if it
+     *     - {bool} unpaid True if this was marking the loan unpaid, false if it
      *       was removing the unpaid flag.
      * @param {string} lender The username of the lender
      * @param {string} borrower The username of the borrower
-     * @param {string} currency_code The uppercase ISO4217 currency code this
+     * @param {string} currencyCode The uppercase ISO4217 currency code this
      *  loan is stored in.
-     * @param {string} currency_symbol The symbol for the currency, e.g., '$'
-     * @param {bool} currency_symbol_on_left True if the currency symbol
+     * @param {string} currencySymbol The symbol for the currency, e.g., '$'
+     * @param {bool} currencySymbolOnLeft True if the currency symbol
      *  should be on the left, false if the currency symbol should be on the
      *  right.
-     * @param {integer} currency_exponent The exponent of the currency the loan
+     * @param {integer} currencyExponent The exponent of the currency the loan
      *   is in. For example, the smallest U.S. denomination is 1 cent. There
      *   are 100 = 10^2 cents in 1 U.S.D. So the U.S. dollar has an exponent of
      *   2. On the other hand, JPY has no minor currency so the "minor" integer
      *   amount is really the same as the major (1 = 10^0) so the exponent is
      *   0.
-     * @param {integer} principal_minor The principal of the loan in the minor
+     * @param {integer} principalMinor The principal of the loan in the minor
      *   unit
-     * @param {integer} principal_repayment_minor The principal repayment of
+     * @param {integer} principalRepaymentMinor The principal repayment of
      *   the loan in the minor unit.
      * @param {Date} createdAt When the loan was first created
+     * @param {Date} lastRepaidAt When money was last put toward repaying this loan
      * @param {Date, null} repaidAt When the loan was completely repaid. Should
      *   only be set if the principal and principal repayment are equal.
      * @param {Date, null} unpaidAt When the loan was marked as unapid. Should
      *   only be set if the principal is less than the principal repayment.
      */
     class LoanDetails extends React.Component {
+        render() {
+            var loanState = 'inprogress';
+            if (this.props.repaidAt) {
+                loanState = 'repaid';
+            } else if (this.props.unpaidAt) {
+                loanState = 'unpaid';
+            }
 
+            return React.createElement(
+                'div',
+                {className: `loan loan-summary loan-${loanState}`},
+                [
+                    React.createElement(
+                        'div',
+                        {key: 'created-at', className: 'loan-row'},
+                        React.createElement(
+                            'span',
+                            {key: 'creation-time', className: 'loan-created-at'},
+                            React.createElement(
+                                TextDateTime,
+                                {time: this.props.createdAt, style: 'absolute'}
+                            )
+                        ),
+                        React.createElement(
+                            'div',
+                            {key: 'involved', className: 'loan-row loan-involved'},
+                            [
+                                React.createElement(
+                                    'span',
+                                    {key: 'lender', className: 'loan-lender'},
+                                    `/u/${this.props.lender}`
+                                ),
+                                React.createElement(
+                                    'span',
+                                    {
+                                        key: 'arrow',
+                                        className: 'loan-involved-arrow',
+                                        dangerouslySetInnerHTML: { __html: '&rarr;' }
+                                    }
+                                ),
+                                React.createElement(
+                                    'span',
+                                    {key: 'borrower', className: 'loan-borrower'},
+                                    `/u/${this.props.borrower}`
+                                )
+                            ]
+                        )
+                    ),
+                    React.createElement(
+                        'div',
+                        {key: 'principal', className: 'loan-row'},
+                        [
+                            React.createElement(
+                                'span',
+                                {key: 'principal', className: 'loan-principal'},
+                                React.createElement(
+                                    Money,
+                                    {
+                                        currencyCode: this.props.currencyCode,
+                                        currencySymbol: this.props.currencySymbol,
+                                        currencySymbolOnLeft: this.props.currencySymbolOnLeft,
+                                        currencyExponent: this.props.currencyExponent,
+                                        minor: this.props.principalMinor
+                                    }
+                                )
+                            )
+                        ]
+                    ),
+                    React.createElement(
+                        'div',
+                        {key: 'buttons-top', className: 'loan-row'},
+                        React.createElement(
+                            'span',
+                            {className: 'loan-buttons loan-buttons-' + (this.props.showRefreshButton ? '2' : '1')},
+                            (
+                                this.props.showRefreshButton ? [
+                                    React.createElement(
+                                        Button,
+                                        {
+                                            key: 'refresh',
+                                            text: 'Refresh',
+                                            style: 'secondary',
+                                            type: 'button',
+                                            onClick: this.props.onRefresh,
+                                            disabled: this.props.refreshDisabled
+                                        }
+                                    )
+                                ] : []
+                            ).concat([
+                                React.createElement(
+                                    Button,
+                                    {
+                                        key: 'summary',
+                                        text: 'Summary',
+                                        style: 'primary',
+                                        type: 'button',
+                                        onClick: this.props.onMinimize
+                                    }
+                                )
+                            ])
+                        )
+                    ),
+                    React.createElement(
+                        'div',
+                        {key: 'loan-events-list', className: 'loan-row'},
+                        [
+                            React.createElement(
+                                'div',
+                                {key: 'title', className: 'loan-events-title'},
+                                'History'
+                            ),
+                            React.createElement(
+                                'div',
+                                {key: 'evts', className: 'loan-events-list'},
+                                this.props.events.map((evt, idx) => {
+                                    if(evt.eventType === 'admin') {
+                                        let children = [];
+                                        if (evt.reason) {
+                                            if (evt.adminUsername) {
+                                                children.push(
+                                                    React.createElement(
+                                                        React.Fragment,
+                                                        {key: 'admin-username'},
+                                                        `/u/${evt.adminUsername}`
+                                                    )
+                                                );
+                                            }else {
+                                                children.push(
+                                                    React.createElement(
+                                                        React.Fragment,
+                                                        {key: 'admin-username'},
+                                                        'A deleted admin user'
+                                                    )
+                                                );
+                                            }
+
+                                            children.push(
+                                                React.createElement(
+                                                    React.Fragment,
+                                                    {key: 'with-username-cat-text'},
+                                                    ` changed this loan at `
+                                                ),
+                                                React.createElement(
+                                                    TextDateTime,
+                                                    {key: 'cat', time: evt.createdAt, style: 'absolute'}
+                                                ),
+                                                React.createElement(
+                                                    React.Fragment,
+                                                    {key: 'admin-reason'},
+                                                    ` and provided the reason '${evt.reason}'.`
+                                                )
+                                            );
+                                        } else {
+                                            children.push(
+                                                React.createElement(
+                                                    React.Fragment,
+                                                    {key: 'cat-text'},
+                                                    'An admin changed this loan at '
+                                                ),
+                                                React.createElement(
+                                                    TextDateTime,
+                                                    {key: 'cat', time: evt.createdAt, style: 'absolute'}
+                                                )
+                                            );
+                                        }
+
+                                        let changesList = [];
+                                        if (evt.oldPrincipalMinor !== evt.newPrincipalMinor) {
+                                            changesList.push(
+                                                React.createElement(
+                                                    'div',
+                                                    {key: 'principal', className: 'loan-event-admin-change'},
+                                                    [
+                                                        React.createElement(
+                                                            React.Fragment,
+                                                            {key: 'title'},
+                                                            'The principal was changed from '
+                                                        ),
+                                                        React.createElement(
+                                                            Money,
+                                                            {
+                                                                key: 'pre',
+                                                                currencyCode: this.props.currencyCode,
+                                                                currencySymbol: this.props.currencySymbol,
+                                                                currencySymbolOnLeft: this.props.currencySymbolOnLeft,
+                                                                currencyExponent: this.props.currencyExponent,
+                                                                minor: evt.oldPrincipalMinor
+                                                            }
+                                                        ),
+                                                        React.createElement(
+                                                            React.Fragment,
+                                                            {key: 'to'},
+                                                            ' to '
+                                                        ),
+                                                        React.createElement(
+                                                            Money,
+                                                            {
+                                                                key: 'post',
+                                                                currencyCode: this.props.currencyCode,
+                                                                currencySymbol: this.props.currencySymbol,
+                                                                currencySymbolOnLeft: this.props.currencySymbolOnLeft,
+                                                                currencyExponent: this.props.currencyExponent,
+                                                                minor: evt.newPrincipalMinor
+                                                            }
+                                                        )
+                                                    ]
+                                                )
+                                            )
+                                        }
+
+                                        if (evt.oldPrincipalRepaymentMinor !== evt.newPrincipalRepaymentMinor) {
+                                            changesList.push(
+                                                React.createElement(
+                                                    'div',
+                                                    {key: 'principal-repayment', className: 'loan-event-admin-change'},
+                                                    [
+                                                        React.createElement(
+                                                            React.Fragment,
+                                                            {key: 'title'},
+                                                            'The sum principal repayment was changed from '
+                                                        ),
+                                                        React.createElement(
+                                                            Money,
+                                                            {
+                                                                key: 'pre',
+                                                                currencyCode: this.props.currencyCode,
+                                                                currencySymbol: this.props.currencySymbol,
+                                                                currencySymbolOnLeft: this.props.currencySymbolOnLeft,
+                                                                currencyExponent: this.props.currencyExponent,
+                                                                minor: evt.oldPrincipalRepaymentMinor
+                                                            }
+                                                        ),
+                                                        React.createElement(
+                                                            React.Fragment,
+                                                            {key: 'to'},
+                                                            ' to '
+                                                        ),
+                                                        React.createElement(
+                                                            Money,
+                                                            {
+                                                                key: 'post',
+                                                                currencyCode: this.props.currencyCode,
+                                                                currencySymbol: this.props.currencySymbol,
+                                                                currencySymbolOnLeft: this.props.currencySymbolOnLeft,
+                                                                currencyExponent: this.props.currencyExponent,
+                                                                minor: evt.newPrincipalRepaymentMinor
+                                                            }
+                                                        )
+                                                    ]
+                                                )
+                                            )
+                                        }
+
+                                        if (evt.oldCreatedAt.getTime() !== evt.newCreatedAt.getTime()) {
+                                            changesList.push(
+                                                React.createElement(
+                                                    'div',
+                                                    {key: 'cat', className: 'loan-event-admin-change'},
+                                                    [
+                                                        React.createElement(
+                                                            React.Fragment,
+                                                            {key: 'title'},
+                                                            'The creation date was changed from '
+                                                        ),
+                                                        React.createElement(
+                                                            TextDateTime,
+                                                            {
+                                                                key: 'pre',
+                                                                time: evt.oldCreatedAt,
+                                                                style: 'absolute'
+                                                            }
+                                                        ),
+                                                        React.createElement(
+                                                            React.Fragment,
+                                                            {key: 'to'},
+                                                            ' to '
+                                                        ),
+                                                        React.createElement(
+                                                            TextDateTime,
+                                                            {
+                                                                key: 'post',
+                                                                time: evt.newCreatedAt,
+                                                                style: 'absolute'
+                                                            }
+                                                        )
+                                                    ]
+                                                )
+                                            )
+                                        }
+
+                                        function compareTimes(nm, oldDate, newDate) {
+                                            if (oldDate !== null && newDate === null) {
+                                                changesList.push(
+                                                    React.createElement(
+                                                        'div',
+                                                        {key: nm, className: 'loan-event-admin-change'},
+                                                        [
+                                                            React.createElement(
+                                                                React.Fragment,
+                                                                {key: 'text'},
+                                                                `The ${nm} date, `
+                                                            ),
+                                                            React.createElement(
+                                                                TextDateTime,
+                                                                {key: 'time', time: oldDate, style: 'absolute'}
+                                                            ),
+                                                            React.createElement(
+                                                                React.Fragment,
+                                                                {key: 'text'},
+                                                                ` was unassigned.`
+                                                            )
+                                                        ]
+                                                    )
+                                                );
+                                            }else if (oldDate === null && newDate !== null) {
+                                                changesList.push(
+                                                    React.createElement(
+                                                        'div',
+                                                        {key: nm, className: 'loan-event-admin-change'},
+                                                        [
+                                                            React.createElement(
+                                                                React.Fragment,
+                                                                {key: 'text'},
+                                                                `The ${nm} date went from unassigned to `
+                                                            ),
+                                                            React.createElement(
+                                                                TextDateTime,
+                                                                {key: 'time', time: newDate, style: 'absolute'}
+                                                            )
+                                                        ]
+                                                    )
+                                                );
+                                            }else if (oldDate !== null && oldDate.getTime() != newDate.getTime()) {
+                                                changesList.push(
+                                                    React.createElement(
+                                                        'div',
+                                                        {key: nm, className: 'loan-event-admin-change'},
+                                                        [
+                                                            React.createElement(
+                                                                React.Fragment,
+                                                                {key: 'text'},
+                                                                `The ${nm} date was changed from `
+                                                            ),
+                                                            React.createElement(
+                                                                TextDateTime,
+                                                                {key: 'pre', time: oldDate, style: 'absolute'}
+                                                            ),
+                                                            React.createElement(
+                                                                React.Fragment,
+                                                                {key: 'to'},
+                                                                ' to '
+                                                            ),
+                                                            React.createElement(
+                                                                TextDateTime,
+                                                                {key: 'post', time: newDate, style: 'absolute'}
+                                                            )
+                                                        ]
+                                                    )
+                                                );
+                                            }
+                                        };
+
+                                        compareTimes('repaid', evt.oldRepaidAt, evt.newRepaidAt);
+                                        compareTimes('unpaid', evt.oldUnpaidAt, evt.newUnpaidAt);
+                                        compareTimes('deleted', evt.oldDeletedAt, evt.newDeletedAt);
+
+                                        if (changesList.length > 0) {
+                                            children.push(
+                                                React.createElement(
+                                                    'ul',
+                                                    {key: 'changes', className: 'loan-event-admin-changes'},
+                                                    changesList.map((inner, innerIdx) => {
+                                                        return React.createElement(
+                                                            'li',
+                                                            {key: `change-${innerIdx}`, className: 'loan-event-admin-change-item'},
+                                                            inner
+                                                        );
+                                                    })
+                                                )
+                                            );
+                                        }
+
+                                        return React.createElement(
+                                            'div',
+                                            {key: `event-${idx}`, className: 'loan-event loan-event-admin'},
+                                            children
+                                        )
+                                    }else if(evt.eventType === 'creation') {
+                                        return React.createElement(
+                                            'div',
+                                            {key: `event-${idx}`, className: 'loan-event loan-event-creation'},
+                                            [
+                                                React.createElement(
+                                                    React.Fragment,
+                                                    {key: '1'},
+                                                    'The loan was created '
+                                                ),
+                                                (
+                                                    evt.creationType === 0 ? (
+                                                        React.createElement(
+                                                            'a',
+                                                            {key: '2', href: evt.creationPermalink},
+                                                            'using this comment'
+                                                        )
+                                                    ) : (
+                                                        React.createElement(
+                                                            React.Fragment,
+                                                            {key: '2'},
+                                                            'in a non-standard way'
+                                                        )
+                                                    )
+                                                ),
+                                                React.createElement(
+                                                    React.Fragment,
+                                                    {key: '3'},
+                                                    ' at '
+                                                ),
+                                                React.createElement(
+                                                    TextDateTime,
+                                                    {key: '4', time: evt.createdAt, style: 'absolute'}
+                                                )
+                                            ]
+                                        )
+                                    }else if(evt.eventType === 'repayment') {
+                                        return React.createElement(
+                                            'div',
+                                            {key: `event-${idx}`, className: 'loan-event loan-event-repayment'},
+                                            [
+                                                React.createElement(
+                                                    Money,
+                                                    {
+                                                        key: '1',
+                                                        currencyCode: this.props.currencyCode,
+                                                        currencySymbol: this.props.currencySymbol,
+                                                        currencySymbolOnLeft: this.props.currencySymbolOnLeft,
+                                                        currencyExponent: this.props.currencyExponent,
+                                                        minor: evt.repaymentMinor
+                                                    }
+                                                ),
+                                                React.createElement(
+                                                    React.Fragment,
+                                                    {key: '2'},
+                                                    ' was repaid at '
+                                                ),
+                                                React.createElement(
+                                                    TextDateTime,
+                                                    {key: '3', time: evt.createdAt, style: 'absolute'}
+                                                )
+                                            ]
+                                        );
+                                    }else if(evt.eventType === 'unpaid') {
+                                        return React.createElement(
+                                            'div',
+                                            {key: `event-${idx}`, className: 'loan-event loan-event-unpaid'},
+                                            [
+                                                React.createElement(
+                                                    React.Fragment,
+                                                    {key: '1'},
+                                                    `The unpaid status changed to ${evt.unpaid ? "unpaid" : "not unpaid"} at `
+                                                ),
+                                                React.createElement(
+                                                    TextDateTime,
+                                                    {key: '2', time: evt.createdAt, style: 'absolute'}
+                                                )
+                                            ]
+                                        );
+                                    }else {
+                                        return React.createElement(
+                                            React.Fragment,
+                                            {key: `event-${idx}`}
+                                        )
+                                    }
+                                })
+                            )
+                        ]
+                    ),
+                    React.createElement(
+                        'div',
+                        {key: 'repayment', className: 'loan-row'},
+                        [
+                            React.createElement(
+                                'span',
+                                {key: 'amt', className: 'loan-repayment-amount'},
+                                React.createElement(
+                                    Money,
+                                    {
+                                        currencyCode: this.props.currencyCode,
+                                        currencySymbol: this.props.currencySymbol,
+                                        currencySymbolOnLeft: this.props.currencySymbolOnLeft,
+                                        currencyExponent: this.props.currencyExponent,
+                                        minor: this.props.principalRepaymentMinor
+                                    }
+                                )
+                            ),
+                            React.createElement(
+                                'span',
+                                {key: 'txt', className: 'loan-repayment-text'},
+                                'repaid so far'
+                            )
+                        ]
+                    ),
+                    (
+                        this.props.lastRepaidAt ? React.createElement(
+                            'div',
+                            {key: 'last-repaid-at', className: 'loan-row'},
+                            [
+                                React.createElement(
+                                    'span',
+                                    {key: 'txt', className: 'loan-last-repayment-text'},
+                                    'Last repayment'
+                                ),
+                                React.createElement(
+                                    'span',
+                                    {key: 'time', className: 'loan-last-repayment-timestr'},
+                                    React.createElement(
+                                        TextDateTime,
+                                        {
+                                            style: 'absolute',
+                                            time: this.props.lastRepaidAt
+                                        }
+                                    )
+                                )
+                            ]
+                        ) : React.createElement(
+                            React.Fragment,
+                            {key: 'last-repaid-at'}
+                        )
+                    ),
+                    React.createElement(
+                        'div',
+                        {key: 'unpaid', className: 'loan-row'},
+                        React.createElement(
+                            'span',
+                            {className: (this.props.unpaidAt ? 'loan-unpaid-text' : 'loan-not-unpaid-text')},
+                            this.props.unpaidAt ? 'Marked unpaid' : 'Not marked unpaid'
+                        )
+                    ),
+                    React.createElement(
+                        'div',
+                        {key: 'buttons-bottom', className: 'loan-row'},
+                        React.createElement(
+                            'span',
+                            {className: 'loan-buttons loan-buttons-' + (this.props.showRefreshButton ? '2' : '1')},
+                            (
+                                this.props.showRefreshButton ? [
+                                    React.createElement(
+                                        Button,
+                                        {
+                                            key: 'refresh',
+                                            text: 'Refresh',
+                                            style: 'secondary',
+                                            type: 'button',
+                                            onClick: this.props.onRefresh,
+                                            disabled: this.props.refreshDisabled
+                                        }
+                                    )
+                                ] : []
+                            ).concat([
+                                React.createElement(
+                                    Button,
+                                    {
+                                        key: 'summary',
+                                        text: 'Summary',
+                                        style: 'primary',
+                                        type: 'button',
+                                        onClick: this.props.onMinimize
+                                    }
+                                )
+                            ])
+                        )
+                    )
+                ]
+            );
+        }
+    };
+
+    LoanDetails.propTypes = {
+        focusQuery: PropTypes.func,
+        focusSet: PropTypes.func,
+        onMinimize: PropTypes.func,
+        showRefreshButton: PropTypes.bool.isRequired,
+        onRefresh: PropTypes.func,
+        refreshDisabled: PropTypes.bool.isRequired,
+        loanId: PropTypes.number.isRequired,
+        events: PropTypes.arrayOf(PropTypes.exact({
+            eventType: PropTypes.string.isRequired,
+            createdAt: PropTypes.instanceOf(Date).isRequired,
+
+            // Admin
+            adminUsername: PropTypes.string,
+            reason: PropTypes.string,
+            oldPrincipalMinor: PropTypes.number,
+            oldPrincipalRepaymentMinor: PropTypes.number,
+            newPrincipalMinor: PropTypes.number,
+            newPrincipalRepaymentMinor: PropTypes.number,
+            oldCreatedAt: PropTypes.instanceOf(Date),
+            newCreatedAt: PropTypes.instanceOf(Date),
+            oldRepaidAt: PropTypes.instanceOf(Date),
+            newRepaidAt: PropTypes.instanceOf(Date),
+            oldUnpaidAt: PropTypes.instanceOf(Date),
+            newUnpaidAt: PropTypes.instanceOf(Date),
+            oldDeletedAt: PropTypes.instanceOf(Date),
+            newDeletedAt: PropTypes.instanceOf(Date),
+
+            // Creation
+            creationType: PropTypes.number,
+            creationPermalink: PropTypes.string,
+
+            // Repayment
+            repaymentMinor: PropTypes.number,
+
+            // Unpaid
+            unpaid: PropTypes.bool
+        })).isRequired,
+        lender: PropTypes.string.isRequired,
+        borrower: PropTypes.string.isRequired,
+        currencyCode: PropTypes.string,
+        currencySymbol: PropTypes.string,
+        currencySymbolOnLeft: PropTypes.bool,
+        currencyExponent: PropTypes.number,
+        principalMinor: PropTypes.number.isRequired,
+        principalRepaymentMinor: PropTypes.number.isRequired,
+        createdAt: PropTypes.instanceOf(Date).isRequired,
+        lastRepaidAt: PropTypes.instanceOf(Date),
+        repaidAt: PropTypes.instanceOf(Date),
+        unpaidAt: PropTypes.instanceOf(Date)
     };
 
     /**

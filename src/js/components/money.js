@@ -29,7 +29,7 @@ const Money = (function() {
             } else if (typeof(this.props.currencyCode) === 'string') {
                 let zero = 0;
                 let formattedZero = zero.toLocaleString('default', {style: 'currency', currency: this.props.currencyCode});
-                let mtch = formattedZero.match(/\.(0+)/g);
+                let mtch = formattedZero.match(/[\.,](0+)/g);
                 if (!mtch) {
                     major = this.props.minor;
                 } else {
