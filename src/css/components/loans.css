@@ -19,6 +19,11 @@
     background-color: rgb(214, 255, 214);
 }
 
+.loan-deleted {
+    /* ULTRA LIGHT, GRAY */
+    background-color: #f6f6f6;
+}
+
 .loan-buttons-2 {
     display: flex;
 }

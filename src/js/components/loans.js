@@ -74,16 +74,20 @@ const [
      * @param {integer} principalRepaymentMinor The principal repayment of
      *   the loan in the minor unit.
      * @param {Date} createdAt When the loan was first created
-     * @param {Date} lastRepaidAt When money was last put toward repaying this loan
+     * @param {Date, null} lastRepaidAt When money was last put toward repaying
+     *   this loan
      * @param {Date, null} repaidAt When the loan was completely repaid. Should
      *   only be set if the principal and principal repayment are equal.
      * @param {Date, null} unpaidAt When the loan was marked as unapid. Should
      *   only be set if the principal is less than the principal repayment.
+     * @param {Date, null} deletedAt When this loan was marked deleted.
      */
     class LoanSummary extends React.Component {
         render() {
             var loanState = 'inprogress';
-            if (this.props.repaidAt) {
+            if (this.props.deletedAt) {
+                loanState = 'deleted';
+            } else if (this.props.repaidAt) {
                 loanState = 'repaid';
             } else if (this.props.unpaidAt) {
                 loanState = 'unpaid';
@@ -104,7 +108,28 @@ const [
                                 {time: this.props.createdAt}
                             )
                         )
-                    ),
+                    )
+                ].concat(!this.props.deletedAt ? [] : [
+                    React.createElement(
+                        'div',
+                        {key: 'deleted-at', className: 'loan-row'},
+                        [
+                            React.createElement(
+                                React.Fragment,
+                                {key: 'deletion-text'},
+                                'This loan was deleted at '
+                            ),
+                            React.createElement(
+                                'span',
+                                {key: 'deletion-time', className: 'loan-deleted-at'},
+                                React.createElement(
+                                    TextDateTime,
+                                    {time: this.props.deletedAt, style: 'absolute'}
+                                )
+                            )
+                        ]
+                    )
+                ]).concat([
                     React.createElement(
                         'div',
                         {key: 'involved', className: 'loan-row loan-involved'},
@@ -243,7 +268,7 @@ const [
                             ])
                         )
                     )
-                ]
+                ])
             )
         }
     };
@@ -265,7 +290,8 @@ const [
         createdAt: PropTypes.instanceOf(Date).isRequired,
         lastRepaidAt: PropTypes.instanceOf(Date),
         repaidAt: PropTypes.instanceOf(Date),
-        unpaidAt: PropTypes.instanceOf(Date)
+        unpaidAt: PropTypes.instanceOf(Date),
+        deletedAt: PropTypes.instanceOf(Date)
     };
 
     /**
@@ -356,7 +382,7 @@ const [
      *         "repayment", "unpaid"
      *     - {Date} createdAt When this event occurred
      *   For admin events:
-     *     - {string, null} adminUsername If our account has access to view
+     *     - {string, null} admin If our account has access to view
      *       loan admin event privileged details, this will be the username of
      *       the admin which edited this event or '<deleted>' if the admin
      *       account has been deleted. Otherwise, when our access doesn't have
@@ -437,13 +463,17 @@ const [
      * @param {Date} lastRepaidAt When money was last put toward repaying this loan
      * @param {Date, null} repaidAt When the loan was completely repaid. Should
      *   only be set if the principal and principal repayment are equal.
-     * @param {Date, null} unpaidAt When the loan was marked as unapid. Should
+     * @param {Date, null} unpaidAt When the loan was marked as unpaid. Should
      *   only be set if the principal is less than the principal repayment.
+     * @param {Date, null} deletedAt When this loan was marked as deleted.
+     *   If set it implies this loan is soft-deleted.
      */
     class LoanDetails extends React.Component {
         render() {
             var loanState = 'inprogress';
-            if (this.props.repaidAt) {
+            if (this.props.deletedAt) {
+                loanState = 'deleted';
+            } else if (this.props.repaidAt) {
                 loanState = 'repaid';
             } else if (this.props.unpaidAt) {
                 loanState = 'unpaid';
@@ -488,7 +518,28 @@ const [
                                 )
                             ]
                         )
-                    ),
+                    )
+                ].concat(!this.props.deletedAt ? [] : [
+                    React.createElement(
+                        'div',
+                        {key: 'deleted-at', className: 'loan-row'},
+                        [
+                            React.createElement(
+                                React.Fragment,
+                                {key: 'deletion-text'},
+                                'This loan was deleted at '
+                            ),
+                            React.createElement(
+                                'span',
+                                {key: 'deletion-time', className: 'loan-deleted-at'},
+                                React.createElement(
+                                    TextDateTime,
+                                    {time: this.props.deletedAt, style: 'absolute'}
+                                )
+                            )
+                        ]
+                    )
+                ]).concat([
                     React.createElement(
                         'div',
                         {key: 'principal', className: 'loan-row'},
@@ -559,12 +610,12 @@ const [
                                     if(evt.eventType === 'admin') {
                                         let children = [];
                                         if (evt.reason) {
-                                            if (evt.adminUsername) {
+                                            if (evt.admin) {
                                                 children.push(
                                                     React.createElement(
                                                         React.Fragment,
                                                         {key: 'admin-username'},
-                                                        `/u/${evt.adminUsername}`
+                                                        `/u/${evt.admin}`
                                                     )
                                                 );
                                             }else {
@@ -1012,7 +1063,7 @@ const [
                             ])
                         )
                     )
-                ]
+                ])
             );
         }
     };
@@ -1030,7 +1081,7 @@ const [
             createdAt: PropTypes.instanceOf(Date).isRequired,
 
             // Admin
-            adminUsername: PropTypes.string,
+            admin: PropTypes.string,
             reason: PropTypes.string,
             oldPrincipalMinor: PropTypes.number,
             oldPrincipalRepaymentMinor: PropTypes.number,
@@ -1066,7 +1117,8 @@ const [
         createdAt: PropTypes.instanceOf(Date).isRequired,
         lastRepaidAt: PropTypes.instanceOf(Date),
         repaidAt: PropTypes.instanceOf(Date),
-        unpaidAt: PropTypes.instanceOf(Date)
+        unpaidAt: PropTypes.instanceOf(Date),
+        deletedAt: PropTypes.instanceOf(Date)
     };
 
     /**
