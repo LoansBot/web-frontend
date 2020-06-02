@@ -330,12 +330,146 @@ const [
      *   any of its children) is focused and false otherwise.
      * @param {function} focusSet A function which we call with a function
      *   which accepts not arguments and rips focus to this component.
+     * @param {function} onDetails A function which we call with no arguments
+     *   when the button to switch to details view is pressed.
      * @param {integer} loanId The id of the loan that should be loaded into a
      *   loan summary.
      */
     class LoanSummaryAjax extends React.Component {
+        constructor(props) {
+            super(props);
 
+            this.state = {
+                state: 'loading',
+                animStyle: 'expanded',
+                loan: null
+            };
+
+            this.fetchLoan(false);
+        }
+
+        render() {
+            let [component, componentArgs, componentChildren] = this.renderInner();
+            return React.createElement(
+                HeightEased,
+                {
+                    component: component,
+                    componentArgs: componentArgs,
+                    componentChildren: componentChildren,
+                    style: this.state.animStyle
+                }
+            );
+        }
+
+        renderInner() {
+            if(this.state.state === 'loading') {
+                return [
+                    'div',
+                    {className: 'loan loan-loading'},
+                    React.createElement(Spinner)
+                ];
+            }
+
+            if (this.state.state === 'errored') {
+                return [
+                    'div',
+                    {className: 'loan loan-errored'},
+                    'Something went wrong with this loan! Reload the page.'
+                ];
+            }
+
+
+            let kwargs = Object.assign({}, this.state.loan);
+            kwargs.focusQuery = this.props.focusQuery;
+            kwargs.focusSet = this.props.focusSet;
+            kwargs.onDetails = this.props.onDetails;
+            kwargs.showRefreshButton = true;
+            kwargs.onRefresh = (() => {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.animStyle = 'closing';
+                    return newState;
+                });
+
+                setTimeout(() => {
+                    this.setState({
+                        state: 'loading',
+                        animStyle: 'expanding',
+                        loan: null
+                    });
+
+                    setTimeout(() => {
+                        this.setState({
+                            state: 'loading',
+                            animStyle: 'expanding',
+                            loan: null
+                        });
+                        this.fetchLoan(true);
+                    }, 500);
+                }, 500);
+            }).bind(this);
+
+            return [LoanSummary, kwargs, null];
+        }
+
+        fetchLoan(force) {
+            let headers = {'Content-Type': 'application/json'}
+            if (force) {
+                headers['Cache-Control'] = 'no-cache'
+            };
+            api_fetch(
+                `/api/loans/${this.props.loanId}`,
+                AuthHelper.auth({
+                    headers: headers
+                })
+            ).then((resp) => {
+                if (!resp.ok) {
+                    console.log(`Error fetching loan ${this.props.loanId}: ${resp.status}`)
+                    console.log(resp.body);
+                    return Promise.reject();
+                }
+
+                return resp.json();
+            }).then((data) => {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.animStyle = 'closing';
+                    return newState;
+                })
+
+                setTimeout(() => {
+                    this.setState({
+                        state: 'loaded',
+                        animStyle: 'expanding',
+                        loan: {
+                            lender: data.lender,
+                            borrower: data.borrower,
+                            currencyCode: data.currency_code,
+                            currencySymbol: data.currency_symbol,
+                            currencySymbolOnLeft: data.currency_symbol_on_left,
+                            currencyExponent: data.currency_exponent,
+                            principalMinor: data.principal_minor,
+                            principalRepaymentMinor: data.principal_repayment_minor,
+                            createdAt: new Date(data.created_at * 1000),
+                            lastRepaidAt: (data.last_repaid_at ? new Date(data.last_repaid_at * 1000) : null),
+                            repaidAt: (data.repaid_at ? new Date(data.repaid_at * 1000) : null),
+                            unpaidAt: (data.unpaid_at ? new Date(data.unpaid_at * 1000) : null),
+                            deletedAt: (data.deleted_at ? new Date(data.deleted_at * 1000) : null)
+                        }
+                    });
+                }, 500);
+            }).catch(() => {
+                this.setState({state: 'errored', animStyle: 'expanded', loan: null});
+            });
+        }
     }
+
+    LoanSummaryAjax.propTypes = {
+        focusQuery: PropTypes.func,
+        focusSet: PropTypes.func,
+        onDetails: PropTypes.func,
+        loanId: PropTypes.number.isRequired
+    };
 
     /**
      * Contains all the useful information about the loan displayed. This takes
@@ -460,7 +594,7 @@ const [
      * @param {integer} principalRepaymentMinor The principal repayment of
      *   the loan in the minor unit.
      * @param {Date} createdAt When the loan was first created
-     * @param {Date} lastRepaidAt When money was last put toward repaying this loan
+     * @param {Date, null} lastRepaidAt When money was last put toward repaying this loan
      * @param {Date, null} repaidAt When the loan was completely repaid. Should
      *   only be set if the principal and principal repayment are equal.
      * @param {Date, null} unpaidAt When the loan was marked as unpaid. Should
@@ -1133,10 +1267,189 @@ const [
      *   any of its children) is focused and false otherwise.
      * @param {function} focusSet A function which we call with a function
      *   which accepts not arguments and rips focus to this component.
+     * @param {function} onMinimize A function which we call with no arguments
+     *   when the minimize button is pressed.
      * @param {integer} loanId The id of the loan to display details for.
      */
     class LoanDetailsAjax extends React.Component {
+        constructor(props) {
+            super(props);
 
+            this.state = {
+                state: 'loading',
+                animStyle: 'expanded',
+                loan: null
+            };
+
+            this.fetchLoan(false);
+        }
+
+        render() {
+            let [component, componentArgs, componentChildren] = this.renderInner();
+            return React.createElement(
+                HeightEased,
+                {
+                    component: component,
+                    componentArgs: componentArgs,
+                    componentChildren: componentChildren,
+                    style: this.state.animStyle
+                }
+            );
+        }
+
+        renderInner() {
+            if(this.state.state === 'loading') {
+                return [
+                    'div',
+                    {className: 'loan loan-loading'},
+                    React.createElement(Spinner)
+                ];
+            }
+
+            if (this.state.state === 'errored') {
+                return [
+                    'div',
+                    {className: 'loan loan-errored'},
+                    'Something went wrong with this loan! Reload the page.'
+                ];
+            }
+
+
+            let kwargs = Object.assign({}, this.state.loan);
+            kwargs.focusQuery = this.props.focusQuery;
+            kwargs.focusSet = this.props.focusSet;
+            kwargs.onMinimize = this.props.onMinimize;
+            kwargs.showRefreshButton = true;
+            kwargs.onRefresh = (() => {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.animStyle = 'closing';
+                    return newState;
+                });
+
+                setTimeout(() => {
+                    this.setState({
+                        state: 'loading',
+                        animStyle: 'expanding',
+                        loan: null
+                    });
+
+                    setTimeout(() => {
+                        this.setState({
+                            state: 'loading',
+                            animStyle: 'expanding',
+                            loan: null
+                        });
+                        this.fetchLoan(true);
+                    }, 500);
+                }, 500);
+            }).bind(this);
+
+            return [LoanDetails, kwargs, null];
+        }
+
+        fetchLoan(force) {
+            let headers = {'Content-Type': 'application/json'}
+            if (force) {
+                headers['Cache-Control'] = 'no-cache'
+            };
+            api_fetch(
+                `/api/loans/${this.props.loanId}/detailed`,
+                AuthHelper.auth({
+                    headers: headers,
+                })
+            ).then((resp) => {
+                if (!resp.ok) {
+                    console.log(`Error fetching loan ${this.props.loanId}: ${resp.status}`)
+                    console.log(resp.body);
+                    return Promise.reject();
+                }
+
+                return resp.json();
+            }).then((data) => {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.animStyle = 'closing';
+                    return newState;
+                })
+
+                setTimeout(() => {
+                    this.setState({
+                        state: 'loaded',
+                        animStyle: 'expanding',
+                        loan: {
+                            lender: data.basic.lender,
+                            borrower: data.basic.borrower,
+                            currencyCode: data.basic.currency_code,
+                            currencySymbol: data.basic.currency_symbol,
+                            currencySymbolOnLeft: data.basic.currency_symbol_on_left,
+                            currencyExponent: data.basic.currency_exponent,
+                            principalMinor: data.basic.principal_minor,
+                            principalRepaymentMinor: data.basic.principal_repayment_minor,
+                            createdAt: new Date(data.basic.created_at * 1000),
+                            lastRepaidAt: (data.basic.last_repaid_at ? new Date(data.basic.last_repaid_at * 1000) : null),
+                            repaidAt: (data.basic.repaid_at ? new Date(data.basic.repaid_at * 1000) : null),
+                            unpaidAt: (data.basic.unpaid_at ? new Date(data.basic.unpaid_at * 1000) : null),
+                            deletedAt: (data.basic.deleted_at ? new Date(data.basic.deleted_at * 1000) : null),
+                            events: data.events.map((evt) => {
+                                let createdAt = new Date(evt.occurred_at * 1000);
+                                switch(evt.event_type) {
+                                    case 'admin':
+                                        return {
+                                            eventType: 'admin',
+                                            createdAt: createdAt,
+                                            admin: evt.admin,
+                                            reason: evt.reason,
+                                            oldPrincipalMinor: evt.old_principal_minor,
+                                            oldPrincipalRepaymentMinor: evt.old_principal_repayment_minor,
+                                            newPrincipalMinor: evt.new_principal_minor,
+                                            newPrincipalRepaymentMinor: evt.new_principal_repayment_minor,
+                                            oldCreatedAt: new Date(evt.old_created_at * 1000),
+                                            newCreatedAt: new Date(evt.new_created_at * 1000),
+                                            oldRepaidAt: (evt.old_repaid_at ? new Date(evt.old_repaid_at * 1000) : null),
+                                            newRepaidAt: (evt.new_repaid_at ? new Date(evt.new_repaid_at * 1000) : null),
+                                            oldUnpaidAt: (evt.old_unpaid_at ? new Date(evt.old_unpaid_at * 1000) : null),
+                                            newUnpaidAt: (evt.new_unpaid_at ? new Date(evt.new_unpaid_at * 1000) : null),
+                                            oldDeletedAt: (evt.old_deleted_at ? new Date(evt.old_deleted_at * 1000) : null),
+                                            newDeletedAt: (evt.new_deleted_at ? new Date(evt.new_deleted_at * 1000) : null)
+                                        };
+                                    case 'creation':
+                                        return {
+                                            eventType: 'creation',
+                                            createdAt: createdAt,
+                                            creationType: evt.creation_type,
+                                            creationPermalink: evt.creation_permalink
+                                        };
+                                    case 'repayment':
+                                        return {
+                                            eventType: 'repayment',
+                                            createdAt: createdAt,
+                                            repaymentMinor: evt.repayment_minor
+                                        };
+                                    case 'unpaid':
+                                        return {
+                                            eventType: 'unpaid',
+                                            createdAt: createdAt,
+                                            unpaid: evt.unpaid
+                                        };
+                                    default:
+                                        return null;
+                                }
+                            }).filter((evt) => evt)
+                        }
+                    });
+                }, 500);
+            }).catch(() => {
+                this.setState({state: 'errored', animStyle: 'expanded', loan: null});
+            });
+        }
+    };
+
+    LoanDetailsAjax.propTypes = {
+        focusQuery: PropTypes.func,
+        focusSet: PropTypes.func,
+        onMinimize: PropTypes.func,
+        loanId: PropTypes.number.isRequired
     };
 
     /**
@@ -1154,7 +1467,74 @@ const [
      *   display
      */
     class LoanSummaryWithClickToDetails extends React.Component {
+        constructor(props) {
+            super(props);
 
+            this.state = {
+                animStyle: 'expanded',
+                summary: true
+            };
+        }
+
+        render() {
+            let [component, componentArgs, componentChildren] = this.renderInner();
+
+            return React.createElement(
+                HeightEased,
+                {
+                    component: component,
+                    componentArgs: componentArgs,
+                    componentChildren: componentChildren,
+                    style: this.state.animStyle
+                }
+            );
+        }
+
+        renderInner() {
+            if (this.state.state === 'loading') {
+                return [
+                    'div',
+                    {className: 'loan loan-loading'},
+                    React.createElement(Spinner)
+                ];
+            }
+
+            let kwargs = {
+                loanId: this.props.loanId,
+                focusQuery: this.props.focusQuery,
+                focusSet: this.props.focusSet
+            };
+
+            if (this.state.summary) {
+                kwargs.onDetails = this.toggleView.bind(this);
+            }else {
+                kwargs.onMinimize = this.toggleView.bind(this);
+            }
+
+
+            return [
+                this.state.summary ? LoanSummaryAjax : LoanDetailsAjax,
+                kwargs,
+                null
+            ];
+        }
+
+        toggleView() {
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.animStyle = 'closing';
+                return newState;
+            });
+
+            setTimeout(() => {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.summary = !state.summary;
+                    newState.animStyle = 'expanding';
+                    return newState;
+                });
+            }, 500);
+        }
     };
 
     /**

@@ -24,6 +24,10 @@
     background-color: #f6f6f6;
 }
 
+.loan-loading {
+    text-align: center;
+}
+
 .loan-buttons-2 {
     display: flex;
 }
