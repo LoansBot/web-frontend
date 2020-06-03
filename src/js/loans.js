@@ -5,9 +5,14 @@ ReactDOM.render(
         React.createElement(NavbarLoader, {key: 'navbar', currentPage: 'loans'}),
         React.createElement('div',
             {key: 'main', className: 'main'},
-            [1, 2, 3, 4, 5, 6].map((i) => {
-                return React.createElement(LoanSummaryWithClickToDetails, { loanId: i, key: `loan-${i}` })
-            })
+            React.createElement(
+                LoanList,
+                {
+                    showRefreshButton: true,
+                    showSeeMoreButton: true,
+                    loanIds: [1, 2, 3, 4, 5, 6]
+                }
+            )
         )
     ]),
     document.getElementById('content')

@@ -1569,17 +1569,77 @@ const [
      *   list contents button is pressed.
      * @param {bool} refreshDisabled No meaning unless showRefreshButton is
      *   true. Sets the disabled state on the refresh button.
-     * @param {bool} showSeeMore True to show a button for loading additional
-     *   loans, false not to show a see more button (usually because there is
-     *   no more content)
+     * @param {bool} showSeeMoreButton True to show a button for loading
+     *   additional loans, false not to show a see more button (usually because
+     *   there is no more content)
      * @param {function} onSeeMore This function is called when see more is
      *   clicked
-     * @param {bool} seeMoreDisabled No meaning unless showSeeMore is true.
-     *   Sets the disabled state on the see more button.
+     * @param {bool} seeMoreDisabled No meaning unless showSeeMoreButton is
+     *   true. Sets the disabled state on the see more button.
      */
     class LoanList extends React.Component {
+        render() {
+            return React.createElement(
+                'div',
+                {className: 'loan-list-wrapper'},
+                [
+                    React.createElement(
+                        'div',
+                        {className: 'loan-list', key: 'loan-list'},
+                        this.props.loanIds.map((i) => {
+                            return React.createElement(
+                                LoanSummaryWithClickToDetails,
+                                {key: `loan-${i}`, loanId: i}
+                            )
+                        })
+                    )
+                ].concat((!this.props.showSeeMoreButton && !this.props.showRefreshButton) ? [] : [
+                    React.createElement(
+                        'div',
+                        {className: 'loan-list-controls', key: 'controls'},
+                        (!this.props.showRefreshButton ? [] : [
+                            React.createElement(
+                                Button,
+                                {
+                                    key: 'refresh-list',
+                                    text: 'Refresh List',
+                                    style: 'secondary',
+                                    type: 'button',
+                                    onClick: this.props.onRefresh,
+                                    disabled: this.props.refreshDisabled
+                                }
+                            )
+                        ]).concat(
+                            !this.props.showSeeMoreButton ? [] : [
+                                React.createElement(
+                                    Button,
+                                    {
+                                        key: 'show-more-list',
+                                        text: 'Show More',
+                                        style: 'primary',
+                                        type: 'button',
+                                        onClick: this.props.onSeeMore,
+                                        disabled: this.props.seeMoreDisabled
+                                    }
+                                )
+                            ]
+                        )
+                    )
+                ])
+            );
+        }
+    }
 
-    };
+    LoanList.propTypes = {
+        focusQuery: PropTypes.func,
+        focusSet: PropTypes.func,
+        loanIds: PropTypes.arrayOf(PropTypes.number).isRequired,
+        showRefreshButton: PropTypes.bool,
+        onRefresh: PropTypes.func,
+        refreshDisabled: PropTypes.bool,
+        showSeeMoreButton: PropTypes.func,
+        seeMoreDisabled: PropTypes.bool
+    }
 
     /**
      * Displays a spinner, runs a specific ajax call, then uses the result to
