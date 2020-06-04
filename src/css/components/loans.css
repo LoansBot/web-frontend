@@ -1,7 +1,11 @@
-.loan {
+.loan, .loan-list-wrapper-loading, .loan-list-wrapper-errored {
     display: block;
     font-size: 14pt;
     color: #000;
+}
+
+.loan-list-wrapper-loading {
+    text-align: center;
 }
 
 .loan-inprogress {
@@ -79,9 +83,8 @@
     display: flex;
 }
 
-
 @media only screen and (max-width: 551px) {
-    .loan {
+    .loan, .loan-list-wrapper-loading, .loan-list-wrapper-errored {
         border-bottom: 2px dashed black;
         border-top: 2px dashed black;
         padding: 0 6px;
@@ -89,7 +92,7 @@
 }
 
 @media only screen and (min-width: 552px) {
-    .loan {
+    .loan, .loan-list-wrapper-loading, .loan-list-wrapper-errored {
         padding: 6px 6px;
         border: 1px solid black;
         border-radius: 4px;

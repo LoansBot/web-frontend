@@ -1644,7 +1644,8 @@ const [
     /**
      * Displays a spinner, runs a specific ajax call, then uses the result to
      * populate a loan list. The ajax call is always to the standard loans
-     * index endpoint, but the parameters are as specified.
+     * index endpoint, but the parameters are as specified. This will handle
+     * key-space descending pagination for you.
      *
      * This will always show a refresh button.
      *
@@ -1656,13 +1657,220 @@ const [
      * @param {object} parameters The query parameters to the loans index
      *   endpoint. Should not include any pagination parameters such as
      *   limit, minId, and maxId
-     * @param {integer} pageSize The target size per page. This uses
-     *   key-space pagination, meaning it's not in general possible to get
-     *   to jump pages and this has to do a reasonable amount of deduplication
-     *   logic.
+     * @param {integer} pageSize The target size per page, i.e., how many more
+     *   items you see when you click "see more"
      */
     class LoanListAjax extends React.Component {
+        constructor(props) {
+            super(props);
 
+            // When refreshing we apply some minimum delay time in order to
+            // ensure even on fast connections you get that visceral feedback
+            // that we really reloaded the data.
+
+            this.state = {
+                loanIds: [],
+                errorMessage: null,
+                fetchingMore: false,
+                haveMore: true,
+                refreshing: true,
+                refreshTimeoutSeen: true,
+                refreshContentLoaded: false
+            }
+            this.realOnRefresh(false);
+        }
+
+        render() {
+            if (this.state.refreshing) {
+                return React.createElement(
+                    'div',
+                    {className: 'loan-list-wrapper loan-list-wrapper-loading'},
+                    React.createElement(Spinner)
+                );
+            }
+
+            if (this.state.errorMessage) {
+                return React.createElement(
+                    'div',
+                    {className: 'loan-list-wrapper loan-list-wrapper-errored'},
+                    [
+                        React.createElement(
+                            React.Fragment,
+                            {key: 'text'},
+                            this.state.errorMessage
+                        ),
+                        React.createElement(
+                            Button,
+                            {
+                                key: 'btn',
+                                text: 'Retry',
+                                style: 'primary',
+                                type: 'button',
+                                onClick: (() => this.onRefresh(true, false)).bind(this),
+                                focusQuery: this.props.focusQuery,
+                                focusSet: this.props.focusSet
+                            }
+                        )
+                    ]
+                )
+            }
+
+            return React.createElement(
+                LoanList,
+                {
+                    focusQuery: this.props.focusQuery,
+                    focusSet: this.props.focusSet,
+                    loanIds: this.state.loanIds,
+                    showRefreshButton: true,
+                    onRefresh: (() => this.onRefresh(true, false)).bind(this),
+                    refreshDisabled: this.state.fetchingMore,
+                    showSeeMoreButton: this.state.haveMore,
+                    onSeeMore: this.onSeeMore.bind(this),
+                    seeMoreDisabled: this.state.fetchingMore
+                }
+            );
+        }
+
+        onRefresh(force, skipTimeout) {
+            console.log(this.state)
+            force = !!force;
+            skipTimeout = !!skipTimeout;
+
+            if (this.state.refreshing || this.state.fetchingMore) {
+                return;
+            }
+
+            this.setState({
+                loanIds: [],
+                errorMessage: null,
+                fetchingMore: false,
+                haveMore: true,
+                refreshing: true,
+                refreshTimeoutSeen: skipTimeout,
+                refreshContentLoaded: false
+            });
+
+            if (!skipTimeout) {
+                setTimeout((() => {
+                    this.setState((state) => {
+                        let newState = Object.assign({}, state);
+                        newState.refreshTimeoutSeen = true;
+                        newState.refreshing = !newState.refreshContentLoaded;
+                        return newState;
+                    });
+                }).bind(this), 500);
+            }
+
+            this.realOnRefresh(force);
+        }
+
+        realOnRefresh(force) {
+            let headers = {'Content-Type': 'application/json'};
+            if (force) {
+                headers['Cache-Control'] = 'no-cache';
+            }
+
+            let realParameters = Object.assign({}, this.props.parameters);
+            realParameters.limit = this.props.pageSize;
+            realParameters.order = 'id_desc';
+            let paramsStr = Object.entries(realParameters).map(([key, val]) => `${key}=${encodeURIComponent(val)}`).join('&');
+            api_fetch(
+                `/api/loans?${paramsStr}`, AuthHelper.auth({
+                    headers: headers
+                })
+            ).then((resp) => {
+                if (resp.ok) {
+                    return resp.json();
+                }
+
+                if (resp.status === 422) {
+                    return resp.json().then((json) => {
+                        return Promise.reject(`422: Unprocessable Entity (${json.detail.loc[0]} - ${json.detail.msg})`);
+                    });
+                }
+
+                return Promise.reject(`${resp.status}: ${resp.statusText}`)
+            }).then((loanIds) => {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.refreshContentLoaded = true;
+                    newState.refreshing = !newState.refreshTimeoutSeen;
+                    newState.loanIds = loanIds;
+                    newState.haveMore = loanIds.length >= this.props.pageSize;
+                    return newState;
+                });
+            }).catch((msg) => {
+                console.log(msg);
+                msg = msg.toString();
+                console.log(msg);
+
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.refreshContentLoaded = true;
+                    newState.errorMessage = msg;
+                    newState.refreshing = !newState.refreshTimeoutSeen;
+                    return newState;
+                });
+            });
+        }
+
+        onSeeMore() {
+            if (this.state.refreshing || this.state.fetchingMore || !this.state.haveMore) {
+                return;
+            }
+
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.fetchingMore = true;
+                return newState;
+            })
+
+            let realParameters = Object.assign({}, this.props.parameters);
+            realParameters.limit = this.props.pageSize;
+            realParameters.before_id = this.state.loanIds[this.state.loanIds.length - 1];
+            realParameters.order = 'id_desc';
+            let paramsStr = Object.entries(realParameters).map(([key, val]) => `${key}=${encodeURIComponent(val)}`).join('&');
+            api_fetch(
+                `/api/loans?${paramsStr}`, AuthHelper.auth({
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache'
+                    }
+                })
+            ).then((resp) => {
+                if (resp.ok) {
+                    return resp.json();
+                }
+
+                if (resp.status === 422) {
+                    return resp.json().then((json) => {
+                        return Promise.reject(`422: Unprocessable Entity (${json.detail.loc[0]} - ${json.detail.msg})`);
+                    });
+                }
+
+                return Promise.reject(`${resp.status}: ${resp.statusText}`)
+            }).then((loanIds) => {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.fetchingMore = false;
+                    newState.loanIds = newState.loanIds.concat(loanIds);
+                    newState.haveMore = loanIds.length >= this.props.pageSize;
+                    return newState;
+                });
+            }).catch((msg) => {
+                console.log(msg);
+                msg = msg.toString();
+                console.log(msg);
+
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.errorMessage = msg;
+                    newState.refreshing = false;
+                    newState.fetchingMore = false;
+                    return newState;
+                });
+            });
+        }
     }
 
     /**

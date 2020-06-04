@@ -6,11 +6,10 @@ ReactDOM.render(
         React.createElement('div',
             {key: 'main', className: 'main'},
             React.createElement(
-                LoanList,
+                LoanListAjax,
                 {
-                    showRefreshButton: true,
-                    showSeeMoreButton: true,
-                    loanIds: [1, 2, 3, 4, 5, 6]
+                    parameters: {},
+                    pageSize: 4
                 }
             )
         )
