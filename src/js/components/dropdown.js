@@ -80,7 +80,8 @@ const DropDown = (function() {
             text: PropTypes.string.isRequired,
             key: PropTypes.string.isRequired
         })).isRequired,
-        initialOption: PropTypes.number,
+        initialOption: PropTypes.string,
+        option: PropTypes.string,
         optionQuery: PropTypes.func,
         optionSet: PropTypes.func,
         optionChanged: PropTypes.func,

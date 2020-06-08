@@ -4,3 +4,38 @@
     position: absolute;
     left: -99999px;
 }
+
+.smart-height-eased-full-closed {
+    transition: none;
+    max-height: 0px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+    overflow: hidden;
+}
+
+.smart-height-eased-render-offscreen {
+    position: absolute;
+    left: -99999px;
+}
+
+.smart-height-eased-expanding {
+    transition: none;
+    max-height: 0px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+    overflow: hidden;
+    /* to expand:
+     *  - set transition on max-height, padding, and margin
+     *  - set max-height, padding, and margin (height-wise) to the
+     *    correct absolute values
+     *  - once transition completes, switch to full-open
+     */
+}
+
+.smart-height-eased-closing {
+    overflow: hidden;
+}

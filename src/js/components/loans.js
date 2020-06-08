@@ -1916,6 +1916,8 @@ const [
      * focuses the preset. End expands the filter (if minimized) and focuses
      * the first basic option. Space is always used for button selection.
      *
+     * @param {string} username The username of the logged in user. Used for
+     *   many of the presets.
      * @param {function} focusQuery A function which we call with a function
      *   which accepts no arguments and returns true if this component (or
      *   any of its children) is focused and false otherwise.
@@ -1924,36 +1926,361 @@ const [
      * @param {bool} includeDeletedOption If true, the Include Deleted?
      *   bonus field will be visible. Otherwise, if false, the Include
      *   Deleted? bonus field will not be visible.
-     * @param {function} onFiltersChanged A function which we call with no
+     * @param {function} filterChanged A function which we call with no
      *   arguments whenever the filters change. Should be careful not to make
      *   too many requests to the server; it's usually a good idea to wait
      *   until there haven't been any changes for 1-3 seconds before making
      *   a request.
      * @param {function} filterQuery A function which we call after render
      *   with a function which returns the currently selected filters as
-     *   an object with the following key/value pairs
-     *   {string} lenderUsername If not null then only loans which have
-     *     lenders which match this query (or meet the borrower query if the
-     *     lenderBorrowerOperator is OR) should be returned. Should be a
-     *     prefix match unless surrounded with quotes, in which case the quotes
-     *     should be ignored and this should be an exact match.
-     *   {string} borrowerUsername Similar to lenderUsername but for borrowers.
-     *   {string} lenderBorrowerOperator Acts as an enum and decides if we need
-     *     both lender and borrower to match ("AND") or only one to match ("OR")
-     *   {integer} id If not null only loans which have exactly the specified id
-     *     should be returned.
-     *   {Date} createdAfter If not null only loans created after this date
-     *     should be returned
-     *   {Date} createdBefore If not null only loans created before this date
-     *     should be returned
-     *   {string} currency If not null only loans with this currency should be
-     *     returned
-     *   {integer} limit If not null, the number of loans the user wants to get.
-     *   {bool} includeDeleted If true deleted loans should be included,
-     *     otherwise no deleted loans should be included.
+     *   an object whose key/value pairs can be used as query arguments to
+     *   the loans index endpoint.
      */
     class LoanFilterForm extends React.Component {
+        constructor(props) {
+            super(props);
 
+            let changed = (() => {
+                this.presetSet('custom');
+                if (this.props.filterChanged) {
+                    this.props.filterChanged();
+                }
+            }).bind(this);
+            this.allFilters = {
+                user: {
+                    extraFilterText: 'Users Involved',
+                    component: LoanUserFilter,
+                    componentArgs: {
+                        key: 'user-filter',
+                        borrowerQuery: ((query) => this.allFilters.user.borrowerQuery = query).bind(this),
+                        lenderQuery: ((query) => this.allFilters.user.lenderQuery = query).bind(this),
+                        operatorQuery: ((query) => this.allFilters.user.operatorQuery = query).bind(this),
+                        borrowerSet: ((setter) => this.allFilters.user.borrowerSet = setter).bind(this),
+                        lenderSet: ((setter) => this.allFilters.user.lenderSet = setter).bind(this),
+                        operatorSet: ((setter) => this.allFilters.user.operatorSet = setter).bind(this),
+                        borrowerChanged: changed,
+                        lenderChanged: changed,
+                        operatorChanged: changed
+                    },
+                    getParams()  {
+                        return {
+                            borrower_name: this.borrowerQuery(),
+                            lender_name: this.lenderQuery(),
+                            user_operator: this.operatorQuery()
+                        };
+                    },
+                    clearState() {
+                        this.borrowerSet('');
+                        this.lenderSet('');
+                        this.operatorSet('OR');
+                    }
+                },
+                state: {
+                    extraFilterText: 'Loan State',
+                    component: LoanStateFilter,
+                    componentArgs: {
+                        key: 'state-filter',
+                        stateQuery: ((query) => this.allFilters.state.stateQuery = query).bind(this),
+                        stateSet: ((setter) => this.allFilters.state.stateSet = setter).bind(this),
+                        stateChanged: changed
+                    },
+                    getParams() {
+                        let state = this.stateQuery();
+                        if (state === 'all') { return state; }
+                        if (state === 'inprogress') {
+                            return {
+                                repaid: false,
+                                unpaid: false
+                            };
+                        }
+                        if (state === 'repaid-only') {
+                            return {
+                                repaid: true,
+                                unpaid: false
+                            };
+                        }
+                        return {
+                            repaid: false,
+                            unpaid: true
+                        };
+                    },
+                    clearState() {
+                        this.stateSet('all');
+                    }
+                },
+                id: {
+                    extraFilterText: 'Loan ID',
+                    component: LoanIDFilter,
+                    componentArgs: {
+                        key: 'id-filter',
+                        idQuery: ((query) => this.allFilters.id.idQuery = query).bind(this),
+                        idSet: ((setter) => this.allFilters.id.idSet = setter).bind(this),
+                        idChanged: changed
+                    },
+                    getParams() {
+                        return {
+                            loan_id: this.idQuery()
+                        };
+                    },
+                    clearState() {
+                        this.idSet(null);
+                    }
+                },
+                time: {
+                    extraFilterText: 'Creation Time',
+                    component: LoanTimeFilter,
+                    componentArgs: {
+                        key: 'time-filter',
+                        minTimeQuery: ((query) => this.allFilters.time.minTimeQuery = query).bind(this),
+                        minTimeSet: ((setter) => this.allFilters.time.minTimeSet = setter).bind(this),
+                        minTimeChanged: changed,
+                        maxTimeQuery: ((query) => this.allFilters.time.maxTimeQuery = query).bind(this),
+                        maxTimeSet: ((setter) => this.allFilters.time.maxTimeSet = setter).bind(this),
+                        maxTimeChanged: changed,
+                    },
+                    getParams() {
+                        let beforeTime = this.minTimeQuery();
+                        let afterTime = this.maxTimeQuery();
+                        return {
+                            before_time: (beforeTime === null ? null : parseInt(beforeTime.getTime() / 1000)),
+                            after_time: (afterTime === null ? null : parseInt(afterTime.getTime() / 1000))
+                        }
+                    },
+                    clearState() {
+                        this.minTimeSet(null);
+                        this.maxTimeSet(null);
+                    }
+                },
+                deleted: {
+                    extraFilterText: 'Include Deleted Loans',
+                    component: LoanDeletedFilter,
+                    componentArgs: {
+                        key: 'deleted-filter',
+                        includeDeletedQuery: ((query) => this.allFilters.deleted.valueQuery = query).bind(this),
+                        includeDeletedSet: ((setter) => this.allFilters.deleted.valueSet = setter).bind(this),
+                        includeDeletedChanged: changed
+                    },
+                    getParams() {
+                        return {
+                            include_deleted: this.valueQuery()
+                        };
+                    },
+                    clearState() {
+                        this.valueSet(false);
+                    }
+                }
+            }
+
+            this.presetQuery = null;
+            this.presetSet = null;
+            this.extraFilterQuery = null;
+
+            this.orderedFilters = ['id', 'user', 'state', 'time', 'deleted'];
+            this.initialFilters = ['user', 'state'];
+
+            this.state = {
+                view: 'basic',
+                filters: ['user', 'state'],
+                extraFilters: ['id', 'time', 'deleted']
+            };
+            this.state.extraFilters.sort();
+        }
+
+        render() {
+            return React.createElement(
+                'div',
+                {className: `loan-filter-form loan-filter-form-${this.state.view}`},
+                [
+                    React.createElement(
+                        'div',
+                        {key: 'header', className: 'loan-filter-form-header'},
+                        [
+                            React.createElement(
+                                FormElement,
+                                {
+                                    key: 'preset',
+                                    labelText: 'Preset',
+                                    component: DropDown,
+                                    componentArgs: {
+                                        options: [
+                                            {key: 'inprogress', text: 'My Inprogress Loans'},
+                                            {key: 'custom', text: 'Custom Search'}
+                                        ],
+                                        optionQuery: ((query) => this.presetQuery = query).bind(this),
+                                        optionSet: ((setter) => this.presetSet = setter).bind(this),
+                                        optionChanged: ((newPreset) => {
+                                            if (newPreset === 'custom') { return; }
+                                            this.applyPreset(newPreset);
+                                        }).bind(this)
+                                    }
+                                }
+                            ),
+                            React.createElement(
+                                Button,
+                                {
+                                    key: 'toggle-view-button',
+                                    text: this.state.view === 'basic' ? 'Show Advanced Filters' : 'Hide Advanced Filters',
+                                    style: 'secondary',
+                                    type: 'button',
+                                    onClick: (() => {
+                                        this.setState((state) => {
+                                            let newState = Object.assign({}, state);
+                                            newState.view = newState.view === 'basic' ? 'advanced' : 'basic';
+                                            return newState;
+                                        });
+                                    }).bind(this)
+                                }
+                            )
+                        ]
+                    ),
+                    React.createElement(
+                        SmartHeightEased,
+                        {
+                            key: 'advanced',
+                            initialState: 'closed',
+                            desiredState: this.state.view === 'basic' ? 'closed' : 'expanded'
+                        },
+                        this.orderedFilters.map((filterKey) => {
+                            let filter = this.allFilters[filterKey];
+                            let expanded = this.state.filters.includes(filterKey);
+
+                            return React.createElement(
+                                SmartHeightEased,
+                                {
+                                    key: filterKey,
+                                    initialState: 'closed',
+                                    desiredState: expanded ? 'expanded' : 'closed'
+                                },
+                                React.createElement(
+                                    filter.component,
+                                    filter.componentArgs
+                                )
+                            )
+                        }).concat([
+                            React.createElement(
+                                SmartHeightEased,
+                                {
+                                    key: 'extra-filters',
+                                    initialState: 'expanded',
+                                    desiredState: this.state.extraFilters.length === 0 ? 'closed' : 'expanded',
+                                },
+                                [
+                                    React.createElement(
+                                        FormElement,
+                                        {
+                                            key: 'dropdown',
+                                            labelText: 'Select Filter To Add',
+                                            component: DropDown,
+                                            componentArgs: {
+                                                options: this.state.extraFilters.map((filterKey) => {
+                                                    return { key: filterKey, text: this.allFilters[filterKey].extraFilterText };
+                                                }),
+                                                optionQuery: ((query) => this.extraFilterQuery = query).bind(this)
+                                            }
+                                        }
+                                    ),
+                                    React.createElement(
+                                        Button,
+                                        {
+                                            key: 'button',
+                                            text: 'Add Filter',
+                                            style: 'secondary',
+                                            type: 'button',
+                                            onClick: (() => {
+                                                let filterToAdd = this.extraFilterQuery();
+                                                if (filterToAdd === null || filterToAdd === undefined) {
+                                                    return;
+                                                }
+                                                this.setState((state) => {
+                                                    if (state.filters.includes(filterToAdd)) {
+                                                        return state;
+                                                    }
+                                                    let newState = Object.assign({}, state);
+                                                    newState.filters = newState.filters.concat([filterToAdd]);
+                                                    newState.extraFilters = newState.extraFilters.filter((itm) => itm !== filterToAdd);
+                                                    return newState;
+                                                });
+                                            }).bind(this)
+                                        }
+                                    )
+                                ]
+                            )
+                        ])
+                    )
+                ]
+            )
+        }
+
+        componentDidMount() {
+            if (this.props.filterQuery) {
+                this.props.filterQuery(this.getFilterQuery.bind(this));
+            }
+
+            this.presetSet('inprogress');
+            this.applyPreset('inprogress');
+        }
+
+        applyPreset(preset) {
+            this.clearAllFilters(false);
+            if (preset === 'inprogress') {
+                this.allFilters.user.lenderSet(this.props.username);
+                this.allFilters.user.borrowerSet(this.props.username);
+                this.allFilters.user.operatorSet('OR');
+                this.allFilters.state.stateSet('inprogress');
+                this.setShownFilters(['user', 'state']);
+            }
+        }
+
+        getFilterQuery() {
+            let result = {};
+            for (let filterKey in this.allFilters) {
+                let filter = this.state[filterKey];
+                let params = filter.getParams();
+
+                for (let paramKey in params) {
+                    result[paramKey] = params[paramKey];
+                }
+            }
+            return result;
+        }
+
+        clearAllFilters(resetExtraFilters) {
+            for (let filterKey in this.allFilters) {
+                this.allFilters[filterKey].clearState();
+            }
+
+            if (resetExtraFilters) {
+                this.setState(((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.filters = [];
+                    newState.extraFilters = this.defaultExtraFilters();
+                    return newState;
+                }).bind(this));
+            }
+        }
+
+        setShownFilters(filters) {
+            let extraFilters = [];
+            for (let filterKey in this.allFilters) {
+                if (!filters.includes(filterKey)) {
+                    extraFilters.push(filterKey);
+                }
+            }
+            extraFilters.sort();
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.filters = filters;
+                newState.extraFilters = extraFilters;
+                return newState;
+            });
+        }
+
+        defaultExtraFilters() {
+            let result = [];
+            //let result = ['time'].concat(this.props.includeDeletedOption ? ['deleted'] : []);
+            result.sort();
+            return result;
+        }
     };
 
     /**
