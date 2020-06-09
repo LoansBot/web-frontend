@@ -6,6 +6,10 @@
 }
 
 .smart-height-eased-full-closed {
+    display: none;
+}
+
+.smart-height-eased-preparing-to-render-offscreen {
     transition: none;
     max-height: 0px;
     padding-top: 0px;

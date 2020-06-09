@@ -341,7 +341,7 @@ const [
 
             this.state = {
                 state: 'loading',
-                animStyle: 'expanded',
+                desiredState: 'expanded',
                 loan: null
             };
 
@@ -351,13 +351,16 @@ const [
         render() {
             let [component, componentArgs, componentChildren] = this.renderInner();
             return React.createElement(
-                HeightEased,
+                SmartHeightEased,
                 {
-                    component: component,
-                    componentArgs: componentArgs,
-                    componentChildren: componentChildren,
-                    style: this.state.animStyle
-                }
+                    initialState: 'expanded',
+                    desiredState: this.state.desiredState
+                },
+                React.createElement(
+                    component,
+                    componentArgs,
+                    componentChildren
+                )
             );
         }
 
@@ -387,23 +390,18 @@ const [
             kwargs.onRefresh = (() => {
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
-                    newState.animStyle = 'closing';
+                    newState.desiredState = 'closed';
                     return newState;
                 });
 
                 setTimeout(() => {
                     this.setState({
                         state: 'loading',
-                        animStyle: 'expanding',
+                        desiredState: 'expanded',
                         loan: null
                     });
 
                     setTimeout(() => {
-                        this.setState({
-                            state: 'loading',
-                            animStyle: 'expanding',
-                            loan: null
-                        });
                         this.fetchLoan(true);
                     }, 500);
                 }, 500);
@@ -433,14 +431,14 @@ const [
             }).then((data) => {
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
-                    newState.animStyle = 'closing';
+                    newState.desiredState = 'closed';
                     return newState;
                 })
 
                 setTimeout(() => {
                     this.setState({
                         state: 'loaded',
-                        animStyle: 'expanding',
+                        desiredState: 'expanded',
                         loan: {
                             lender: data.lender,
                             borrower: data.borrower,
@@ -459,7 +457,7 @@ const [
                     });
                 }, 500);
             }).catch(() => {
-                this.setState({state: 'errored', animStyle: 'expanded', loan: null});
+                this.setState({state: 'errored', desiredState: 'expanded', loan: null});
             });
         }
     }
@@ -1471,34 +1469,12 @@ const [
             super(props);
 
             this.state = {
-                animStyle: 'expanded',
+                desiredState: 'expanded',
                 summary: true
             };
         }
 
         render() {
-            let [component, componentArgs, componentChildren] = this.renderInner();
-
-            return React.createElement(
-                HeightEased,
-                {
-                    component: component,
-                    componentArgs: componentArgs,
-                    componentChildren: componentChildren,
-                    style: this.state.animStyle
-                }
-            );
-        }
-
-        renderInner() {
-            if (this.state.state === 'loading') {
-                return [
-                    'div',
-                    {className: 'loan loan-loading'},
-                    React.createElement(Spinner)
-                ];
-            }
-
             let kwargs = {
                 loanId: this.props.loanId,
                 focusQuery: this.props.focusQuery,
@@ -1512,28 +1488,19 @@ const [
             }
 
 
-            return [
+            return React.createElement(
                 this.state.summary ? LoanSummaryAjax : LoanDetailsAjax,
                 kwargs,
                 null
-            ];
+            );
         }
 
         toggleView() {
             this.setState((state) => {
                 let newState = Object.assign({}, state);
-                newState.animStyle = 'closing';
+                newState.summary = !newState.summary;
                 return newState;
             });
-
-            setTimeout(() => {
-                this.setState((state) => {
-                    let newState = Object.assign({}, state);
-                    newState.summary = !state.summary;
-                    newState.animStyle = 'expanding';
-                    return newState;
-                });
-            }, 500);
         }
     };
 
@@ -2102,10 +2069,11 @@ const [
                                     labelText: 'Preset',
                                     component: DropDown,
                                     componentArgs: {
-                                        options: [
+                                        options: (this.props.username == null ? [] : [
                                             {key: 'inprogress', text: 'My Inprogress Loans'},
+                                        ]).concat([
                                             {key: 'custom', text: 'Custom Search'}
-                                        ],
+                                        ]),
                                         optionQuery: ((query) => this.presetQuery = query).bind(this),
                                         optionSet: ((setter) => this.presetSet = setter).bind(this),
                                         optionChanged: ((newPreset) => {
@@ -2148,7 +2116,7 @@ const [
                                 SmartHeightEased,
                                 {
                                     key: filterKey,
-                                    initialState: 'closed',
+                                    initialState: this.initialFilters.includes(filterKey) ? 'expanded' : 'closed',
                                     desiredState: expanded ? 'expanded' : 'closed'
                                 },
                                 React.createElement(
@@ -2295,8 +2263,7 @@ const [
      * - Background colors highlight the state of the loan. Colors selected to
      *   ensure more critical distinctions are clear to all major color
      *   blindness types.
-     * - Intelligent keyboard navigation (Smart tabs, arrow navigation, context
-     *   sensitivity)
+     * - Kkeyboard navigation
      * - Key-space pagination
      * - WCAG-AAA contrast throughout.
      * - Mobile friendly design

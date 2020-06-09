@@ -1,5 +1,5 @@
 const SmartHeightEased = (() => {
-    const MIN_DOM_RENDER_TIME = 20;
+    const MIN_DOM_RENDER_TIME = 30;
     const ANIMATION_TIME = 300;
 
     /**
@@ -80,48 +80,53 @@ const SmartHeightEased = (() => {
                 //   Expanding
                 //   Expanded
 
-                let newState = Object.assign({}, this.state);
-                newState.measuredWidth = this.getCurrentWidth();
-                newState.currentState = 'render-off-screen';
-                let myTimeoutFn = (() => {
-                    let absoluteProps = this.getCurrentAbsoluteProps();
-                    if (absoluteProps.maxHeight === '0px') {
-                        /* not ready yet */
-                        let tmpNewState = Object.assign({}, this.state);
-                        tmpNewState.timeout = setTimeout(myTimeoutFn, MIN_DOM_RENDER_TIME);
-                        this.setState(tmpNewState);
-                        return;
-                    }
+                let firstState = Object.assign({}, this.state);
+                firstState.currentState = 'preparing-to-render-off-screen';
+                firstState.timeout = setTimeout((() => {
+                    let newState = Object.assign({}, this.state);
+                    newState.measuredWidth = this.getCurrentWidth();
+                    newState.currentState = 'render-off-screen';
+                    let myTimeoutFn = (() => {
+                        let absoluteProps = this.getCurrentAbsoluteProps();
+                        if (absoluteProps.maxHeight === '0px') {
+                            /* not ready yet */
+                            let tmpNewState = Object.assign({}, this.state);
+                            tmpNewState.timeout = setTimeout(myTimeoutFn, MIN_DOM_RENDER_TIME);
+                            this.setState(tmpNewState);
+                            return;
+                        }
 
-                    let newState2 = Object.assign({}, this.state);
-                    newState2.currentState = 'preparing-to-expand-step-1';
-                    newState2.measuredWidth = null;
-                    newState2.absoluteProps = absoluteProps;
-                    newState2.timeout = setTimeout((() => {
-                        let newState2B = Object.assign({}, this.state);
-                        newState2B.currentState = 'preparing-to-expand-step-2';
-                        newState2B.timeout = setTimeout((() => {
-                            let newState3 = Object.assign({}, this.state);
-                            newState3.currentState = 'expanding';
-                            newState3.timeout = setTimeout((() => {
-                                let newState4 = Object.assign({}, this.state);
-                                newState4.currentState = 'expanded';
-                                newState4.absoluteProps = null;
-                                newState4.timeout = setTimeout((() => {
-                                    let newState5 = Object.assign({}, this.state);
-                                    newState5.timeout = null;
-                                    this.setState(newState5);
-                                }).bind(this), MIN_DOM_RENDER_TIME);
-                                this.setState(newState4);
-                            }).bind(this), Math.max(ANIMATION_TIME, MIN_DOM_RENDER_TIME));
-                            this.setState(newState3);
+                        let newState2 = Object.assign({}, this.state);
+                        newState2.currentState = 'preparing-to-expand-step-1';
+                        newState2.measuredWidth = null;
+                        newState2.absoluteProps = absoluteProps;
+                        newState2.timeout = setTimeout((() => {
+                            let newState2B = Object.assign({}, this.state);
+                            newState2B.currentState = 'preparing-to-expand-step-2';
+                            newState2B.timeout = setTimeout((() => {
+                                let newState3 = Object.assign({}, this.state);
+                                newState3.currentState = 'expanding';
+                                newState3.timeout = setTimeout((() => {
+                                    let newState4 = Object.assign({}, this.state);
+                                    newState4.currentState = 'expanded';
+                                    newState4.absoluteProps = null;
+                                    newState4.timeout = setTimeout((() => {
+                                        let newState5 = Object.assign({}, this.state);
+                                        newState5.timeout = null;
+                                        this.setState(newState5);
+                                    }).bind(this), MIN_DOM_RENDER_TIME);
+                                    this.setState(newState4);
+                                }).bind(this), Math.max(ANIMATION_TIME, MIN_DOM_RENDER_TIME));
+                                this.setState(newState3);
+                            }).bind(this), MIN_DOM_RENDER_TIME);
+                            this.setState(newState2B);
                         }).bind(this), MIN_DOM_RENDER_TIME);
-                        this.setState(newState2B);
-                    }).bind(this), MIN_DOM_RENDER_TIME);
-                    this.setState(newState2);
-                }).bind(this);
-                newState.timeout = setTimeout(myTimeoutFn, MIN_DOM_RENDER_TIME);
-                this.setState(newState);
+                        this.setState(newState2);
+                    }).bind(this);
+                    newState.timeout = setTimeout(myTimeoutFn, MIN_DOM_RENDER_TIME);
+                    this.setState(newState);
+                }).bind(this), MIN_DOM_RENDER_TIME);
+                this.setState(firstState);
                 return;
             }
 
@@ -161,6 +166,10 @@ const SmartHeightEased = (() => {
         }
 
         calculateRenderProps() {
+            if (this.state.currentState === 'preparing-to-render-off-screen') {
+                return this.getPreparingToRenderOffScreenProps();
+            }
+
             if (this.state.currentState === 'render-off-screen') {
                 return this.getRenderOffScreenProps();
             }
@@ -204,6 +213,12 @@ const SmartHeightEased = (() => {
 
         getOpenNoTransitionProps() {
             return { className: 'smart-height-eased-full-open' };
+        }
+
+        getPreparingToRenderOffScreenProps() {
+            return {
+                className: 'smart-height-eased-preparing-to-render-offscreen'
+            }
         }
 
         getRenderOffScreenProps() {
