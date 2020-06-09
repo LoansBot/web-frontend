@@ -647,6 +647,11 @@ const [
                                     'span',
                                     {key: 'borrower', className: 'loan-borrower'},
                                     `/u/${this.props.borrower}`
+                                ),
+                                React.createElement(
+                                    'span',
+                                    {key: 'loanId', className: 'loan-id'},
+                                    ` (loan ${this.props.loanId})`
                                 )
                             ]
                         )
@@ -1376,6 +1381,7 @@ const [
                         state: 'loaded',
                         animStyle: 'expanding',
                         loan: {
+                            loanId: this.props.loanId,
                             lender: data.basic.lender,
                             borrower: data.basic.borrower,
                             currencyCode: data.basic.currency_code,
@@ -1740,7 +1746,7 @@ const [
             let realParameters = Object.assign({}, this.props.parameters);
             realParameters.limit = this.props.pageSize;
             realParameters.order = 'id_desc';
-            let paramsStr = Object.entries(realParameters).map(([key, val]) => `${key}=${encodeURIComponent(val)}`).join('&');
+            let paramsStr = Object.entries(realParameters).filter(([_, val]) => val !== null).map(([key, val]) => `${key}=${encodeURIComponent(val)}`).join('&');
             api_fetch(
                 `/api/loans?${paramsStr}`, AuthHelper.auth({
                     headers: headers
@@ -1752,7 +1758,7 @@ const [
 
                 if (resp.status === 422) {
                     return resp.json().then((json) => {
-                        return Promise.reject(`422: Unprocessable Entity (${json.detail.loc[0]} - ${json.detail.msg})`);
+                        return Promise.reject(`422: Unprocessable Entity (${json.detail[0].loc} - ${json.detail[0].msg})`);
                     });
                 }
 
@@ -1796,7 +1802,7 @@ const [
             realParameters.limit = this.props.pageSize;
             realParameters.before_id = this.state.loanIds[this.state.loanIds.length - 1];
             realParameters.order = 'id_desc';
-            let paramsStr = Object.entries(realParameters).map(([key, val]) => `${key}=${encodeURIComponent(val)}`).join('&');
+            let paramsStr = Object.entries(realParameters).filter(([_, val]) => val !== null).map(([key, val]) => `${key}=${encodeURIComponent(val)}`).join('&');
             api_fetch(
                 `/api/loans?${paramsStr}`, AuthHelper.auth({
                     headers: {
@@ -1811,7 +1817,7 @@ const [
 
                 if (resp.status === 422) {
                     return resp.json().then((json) => {
-                        return Promise.reject(`422: Unprocessable Entity (${json.detail.loc[0]} - ${json.detail.msg})`);
+                        return Promise.reject(`422: Unprocessable Entity (${json.detail[0].loc} - ${json.detail[0].msg})`);
                     });
                 }
 
@@ -1953,7 +1959,7 @@ const [
                     },
                     getParams() {
                         let state = this.stateQuery();
-                        if (state === 'all') { return state; }
+                        if (state === 'all') { return {}; }
                         if (state === 'inprogress') {
                             return {
                                 repaid: false,
@@ -2006,8 +2012,8 @@ const [
                         maxTimeChanged: changed,
                     },
                     getParams() {
-                        let beforeTime = this.minTimeQuery();
-                        let afterTime = this.maxTimeQuery();
+                        let beforeTime = this.maxTimeQuery();
+                        let afterTime = this.minTimeQuery();
                         return {
                             before_time: (beforeTime === null ? null : parseInt(beforeTime.getTime() / 1000)),
                             after_time: (afterTime === null ? null : parseInt(afterTime.getTime() / 1000))
@@ -2069,9 +2075,10 @@ const [
                                     labelText: 'Preset',
                                     component: DropDown,
                                     componentArgs: {
-                                        options: (this.props.username == null ? [] : [
+                                        options: (this.props.username === null ? [] : [
                                             {key: 'inprogress', text: 'My Inprogress Loans'},
                                         ]).concat([
+                                            {key: 'all', text: 'All Loans'},
                                             {key: 'custom', text: 'Custom Search'}
                                         ]),
                                         optionQuery: ((query) => this.presetQuery = query).bind(this),
@@ -2184,25 +2191,30 @@ const [
                 this.props.filterQuery(this.getFilterQuery.bind(this));
             }
 
-            this.presetSet('inprogress');
-            this.applyPreset('inprogress');
+            this.presetSet('all');
+            this.applyPreset('all');
         }
 
         applyPreset(preset) {
             this.clearAllFilters(false);
-            if (preset === 'inprogress') {
+            if (preset === 'all') {
+            }else if (preset === 'inprogress') {
                 this.allFilters.user.lenderSet(this.props.username);
                 this.allFilters.user.borrowerSet(this.props.username);
                 this.allFilters.user.operatorSet('OR');
                 this.allFilters.state.stateSet('inprogress');
                 this.setShownFilters(['user', 'state']);
             }
+
+            if (this.props.filterChanged) {
+                this.props.filterChanged();
+            }
         }
 
         getFilterQuery() {
             let result = {};
             for (let filterKey in this.allFilters) {
-                let filter = this.state[filterKey];
+                let filter = this.allFilters[filterKey];
                 let params = filter.getParams();
 
                 for (let paramKey in params) {
@@ -2263,7 +2275,7 @@ const [
      * - Background colors highlight the state of the loan. Colors selected to
      *   ensure more critical distinctions are clear to all major color
      *   blindness types.
-     * - Kkeyboard navigation
+     * - Keyboard navigation
      * - Key-space pagination
      * - WCAG-AAA contrast throughout.
      * - Mobile friendly design
@@ -2275,7 +2287,154 @@ const [
      *   which accepts not arguments and rips focus to this component.
      */
     class LoanFilterFormWithList extends React.Component {
+        constructor(props) {
+            super(props);
 
+            this.filterQuery = null;
+            this.state = {
+                spinner: true,
+                desiredState: 'expanded',
+                timeout: null,
+                params: null,
+                minimizing: false,
+                username: null
+            }
+
+            if (AuthHelper.isLoggedIn()) {
+                api_fetch(
+                    `/api/users/${AuthHelper.getAuthToken().userId}/me`, AuthHelper.auth()
+                ).then((res) => {
+                    if (!res.ok) {
+                        return Promise.reject(res.statusText);
+                    }
+                    return res.json();
+                }).then((json) => {
+                    this.setState((state) => {
+                        let newState = Object.assign({}, state);
+                        newState.username = json.username;
+                        return newState;
+                    });
+                });
+            }
+        }
+
+        render() {
+            return React.createElement(
+                'div',
+                {className: 'loan-filter-form-with-list'},
+                [
+                    React.createElement(
+                        LoanFilterForm,
+                        {
+                            key: 'filter-form',
+                            username: this.state.username,
+                            filterQuery: ((query) => { this.filterQuery = query; }).bind(this),
+                            filterChanged: this.onFilterChanged.bind(this)
+                        }
+                    )
+                ].concat([
+                    React.createElement(
+                        SmartHeightEased,
+                        {
+                            key: 'inner',
+                            initialState: 'expanded',
+                            desiredState: this.state.desiredState
+                        },
+                        this.state.spinner ?
+                        React.createElement(
+                            'div',
+                            {className: 'loan-list-wrapper loan-list-wrapper-loading', key: 'spinner'},
+                            React.createElement(Spinner)
+                        ) :
+                        React.createElement(
+                            LoanListAjax,
+                            {
+                                key: 'list',
+                                parameters: this.state.params,
+                                pageSize: 4
+                            }
+                        )
+                    )
+                ])
+            );
+        }
+
+        onFilterChanged() {
+            if (this.state.minimizing) {
+                return;
+            }
+
+            if (this.state.timeout !== null) {
+                clearTimeout(this.state.timeout);
+            } else if (this.state.spinner) {
+                // No timeout + spinner = first render
+                let params = this.filterQuery();
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.params = params;
+                    newState.spinner = false;
+                    return newState;
+                });
+                return;
+            } else {
+                // No timeout + no spinner = minimize, switch to spinner, delay
+
+                let newState = Object.assign({}, this.state);
+                newState.desiredState = 'closed';
+                newState.minimizing = true;
+                newState.timeout = setTimeout((() => {
+                    let newState2 = Object.assign({}, this.state);
+                    newState2.desiredState = 'expanded';
+                    newState2.spinner = true;
+                    newState2.timeout = setTimeout((() => {
+                        let newState3 = Object.assign({}, this.state);
+                        newState3.minimizing = false;
+                        newState3.timeout = setTimeout((() => {
+                            let params = Object.assign({}, this.filterQuery());
+                            params.pageSize = 5;
+
+                            this.setState((state) => {
+                                let newState = Object.assign({}, state);
+                                newState.params = params;
+                                newState.spinner = false;
+                                newState.timeout = null;
+                                return newState;
+                            });
+                        }), 1000);
+                        this.setState(newState3);
+                    }).bind(this), 500);
+                    this.setState(newState2);
+                }).bind(this), 500);
+                this.setState(newState);
+                return;
+            }
+
+            let newState = Object.assign({}, this.state);
+            newState.timeout = setTimeout((() => {
+                let params = Object.assign({}, this.filterQuery());
+                params.pageSize = 5;
+
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.params = params;
+                    newState.spinner = false;
+                    newState.timeout = null;
+                    return newState;
+                });
+            }).bind(this), 1000);
+            this.setState(newState);
+        }
+
+        componentWillUnmount() {
+            if (this.state.timeout) {
+                clearTimeout(this.state.timeout);
+            }
+        }
+    }
+
+    LoanFilterFormWithList.propTypes = {
+        focusQuery: PropTypes.func,
+        focusSet: PropTypes.func
     };
 
     return [

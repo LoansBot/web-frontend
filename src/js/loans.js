@@ -5,23 +5,7 @@ ReactDOM.render(
         React.createElement(NavbarLoader, {key: 'navbar', currentPage: 'loans'}),
         React.createElement('div',
             {key: 'main', className: 'main'},
-            [
-                React.createElement(
-                    LoanFilterForm,
-                    {
-                        key: 'filter-form',
-                        username: 'tjstretchalot'
-                    }
-                ),
-                React.createElement(
-                    LoanListAjax,
-                    {
-                        key: 'list',
-                        parameters: {},
-                        pageSize: 4
-                    }
-                )
-            ]
+            React.createElement(LoanFilterFormWithList)
         )
     ]),
     document.getElementById('content')
