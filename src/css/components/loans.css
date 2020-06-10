@@ -1,0 +1,101 @@
+.loan, .loan-list-wrapper-loading, .loan-list-wrapper-errored {
+    display: block;
+    font-size: 14pt;
+    color: #000;
+}
+
+.loan-list-wrapper-loading {
+    text-align: center;
+}
+
+.loan-inprogress {
+    /* DARK, BLUE */
+    background-color: #3399FF;
+}
+
+.loan-unpaid {
+    /* MEDIUM, RED */
+    background-color: rgb(255, 154, 154);
+}
+
+.loan-repaid {
+    /* LIGHT, GREEN */
+    background-color: rgb(214, 255, 214);
+}
+
+.loan-deleted {
+    /* ULTRA LIGHT, GRAY */
+    background-color: #f6f6f6;
+}
+
+.loan-loading {
+    text-align: center;
+}
+
+.loan-buttons-2 {
+    display: flex;
+}
+
+.loan-involved-arrow {
+    display: inline-block;
+    margin-left: 0.6em;
+    margin-right: 0.6em;
+    position: relative;
+    top: -0.1em;
+}
+
+.loan-principal {
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+    font-size: larger;
+    padding-top: 0.5em;
+    padding-bottom: 0.5em;
+}
+
+.loan-repayment-amount {
+    font-weight: bold;
+    margin-right: 0.2em;
+}
+
+.loan-last-repayment-timestr {
+    margin-left: 0.2em;
+}
+
+.loan-events-list {
+    margin-bottom: 1em;
+    padding-left: 0.4em;
+}
+
+.loan-event {
+    padding-left: 0.2em;
+    padding-right: 0.2em;
+    border: 1px solid black;
+    border-radius: 4px;
+    margin-bottom: 0.2em;
+}
+
+.loan-event {
+    background-color: rgb(255, 255, 255, 0.3);
+}
+
+.loan-list-controls {
+    display: flex;
+}
+
+@media only screen and (max-width: 551px) {
+    .loan, .loan-list-wrapper-loading, .loan-list-wrapper-errored {
+        border-bottom: 2px dashed black;
+        border-top: 2px dashed black;
+        padding: 0 6px;
+    }
+}
+
+@media only screen and (min-width: 552px) {
+    .loan, .loan-list-wrapper-loading, .loan-list-wrapper-errored {
+        padding: 6px 6px;
+        border: 1px solid black;
+        border-radius: 4px;
+        margin-bottom: 12px;
+    }
+}

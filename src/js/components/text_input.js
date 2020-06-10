@@ -43,7 +43,9 @@ const TextInput = (function() {
             }
 
             if(this.props.textSet) {
-                this.props.textSet(((text) => this.inputRef.current.value = text.toString()).bind(this));
+                this.props.textSet(((text) => {
+                    this.inputRef.current.value = text === null ? '' : text.toString();
+                }).bind(this));
             }
 
             if(this.props.textChanged) {
@@ -60,6 +62,9 @@ const TextInput = (function() {
         getValue() {
             let val = this.inputRef.current.value;
             if(this.props.type == 'number') {
+                if (val === '') {
+                    return null;
+                }
                 return parseFloat(val);
             }
             return val;
