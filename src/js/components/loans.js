@@ -32,17 +32,6 @@ const [
      * to a timestamp format (Jan 1st, 2020 at 04:45 PM) to avoid the message
      * getting too long.
      *
-     * This supports keyboard-only navigation. Arrow key navigation will be
-     * used to jump between elements within this component unless an element
-     * is focused which uses arrows, in which this will allow tab/shift tab
-     * to jump between elements within this component. Left/right/up/down will
-     * all be selected as is visually appropriate.
-     *
-     * @param {function} focusQuery A function which we call with a function
-     *   which accepts no arguments and returns true if this component (or
-     *   any of its children) is focused and false otherwise.
-     * @param {function} focusSet A function which we call with a function
-     *   which accepts not arguments and rips focus to this component.
      * @param {bool} showRefreshButton If true a refresh button is displayed
      *   which when clicked triggers onRefresh. This should reload the content
      *   of this loan summary. It's important that even if the content does not
@@ -274,8 +263,6 @@ const [
     };
 
     LoanSummary.propTypes = {
-        focusQuery: PropTypes.func,
-        focusSet: PropTypes.func,
         showRefreshButton: PropTypes.bool.isRequired,
         onRefresh: PropTypes.func,
         refreshDisabled: PropTypes.bool.isRequired,
@@ -299,37 +286,11 @@ const [
      * loan show endpoint, meaning it only needs the loan id. This will always
      * show the refresh button on the loan summary.
      *
-     * For smart clients, it's recommended to load the index page and then load
-     * each of the loans via different requests. For dumb clients, it's strongly
-     * preferred if a single more expensive request is made. A "smart" client
-     * needs to respect the following:
-     * - It must use HTTP/2 so that all the requests use a single TCP
-     *   connection
-     * - It must respect cache-control headers
-     * - (UI only) It can intelligently refresh loans that are stale, typically
-     *   by user request or because the user just manipulated the loan, before
-     *   the cache expiration time.
-     * - It should only send a reasonable number of requests through any one
-     *   connection. A typical limit is around 100 concurrent requests over
-     *   an HTTP/2 connection. (Note, the limit should never exceed 8 on
-     *   HTTP/1.1 connections, and is usually 2-6.)
-     *
-     * This means if you're going to plug-and-play the API into excel, for
-     * example, don't do what this component does. However if you're going to
-     * use a python client, then you can either use bulk requests using HTTP/1.1
-     * (i.e., the requests library) or many small requests using HTTP/2 (i.e, the
-     * Hyper library). The longer the lifetime of the application the more you
-     * can benefit from the built-in client side request deduplication/caching
-     * from small requests.
-     *
      * It is not necessary or helpful to cache this component; the ajax call
-     * itself will be appropriately cached.
+     * itself will be appropriately cached. If you're reading this to connect
+     * the Loans API to some other service, you should read API.md in the
+     * LoansBot/web-backend repo
      *
-     * @param {function} focusQuery A function which we call with a function
-     *   which accepts no arguments and returns true if this component (or
-     *   any of its children) is focused and false otherwise.
-     * @param {function} focusSet A function which we call with a function
-     *   which accepts not arguments and rips focus to this component.
      * @param {function} onDetails A function which we call with no arguments
      *   when the button to switch to details view is pressed.
      * @param {integer} loanId The id of the loan that should be loaded into a
@@ -349,36 +310,31 @@ const [
         }
 
         render() {
-            let [component, componentArgs, componentChildren] = this.renderInner();
             return React.createElement(
                 SmartHeightEased,
                 {
                     initialState: 'expanded',
                     desiredState: this.state.desiredState
                 },
-                React.createElement(
-                    component,
-                    componentArgs,
-                    componentChildren
-                )
+                this.renderInner()
             );
         }
 
         renderInner() {
             if(this.state.state === 'loading') {
-                return [
+                return React.createElement(
                     'div',
                     {className: 'loan loan-loading'},
                     React.createElement(Spinner)
-                ];
+                );
             }
 
             if (this.state.state === 'errored') {
-                return [
+                return React.createElement(
                     'div',
                     {className: 'loan loan-errored'},
                     'Something went wrong with this loan! Reload the page.'
-                ];
+                );
             }
 
 
@@ -407,7 +363,7 @@ const [
                 }, 500);
             }).bind(this);
 
-            return [LoanSummary, kwargs, null];
+            return React.createElement(LoanSummary, kwargs);
         }
 
         fetchLoan(force) {
@@ -463,8 +419,6 @@ const [
     }
 
     LoanSummaryAjax.propTypes = {
-        focusQuery: PropTypes.func,
-        focusSet: PropTypes.func,
         onDetails: PropTypes.func,
         loanId: PropTypes.number.isRequired
     };
@@ -480,16 +434,6 @@ const [
      * This is typically displayed only by explicit request, ie., a user clicks
      * a loan summary (see LoanSummaryWithClickToDetails).
      *
-     * This uses arrow-key navigation within components unless a component is
-     * focused which itself uses the arrow keys, in which case this will allow
-     * tab/shift-tab to jump between components within this. This will
-     * optionally show a button to minimize.
-     *
-     * @param {function} focusQuery A function which we call with a function
-     *   which accepts no arguments and returns true if this component (or
-     *   any of its children) is focused and false otherwise.
-     * @param {function} focusSet A function which we call with a function
-     *   which accepts not arguments and rips focus to this component.
      * @param {function} onMinimize If not null a minimize button will be shown
      *   and this function will be triggered if it's clicked. This should not
      *   be the only way to minimize a component.
@@ -1206,8 +1150,6 @@ const [
     };
 
     LoanDetails.propTypes = {
-        focusQuery: PropTypes.func,
-        focusSet: PropTypes.func,
         onMinimize: PropTypes.func,
         showRefreshButton: PropTypes.bool.isRequired,
         onRefresh: PropTypes.func,
@@ -1265,11 +1207,6 @@ const [
      * from just a loan id. It is not necessary or helpful to cache this
      * component; the ajax call itself will be appropriately cached.
      *
-     * @param {function} focusQuery A function which we call with a function
-     *   which accepts no arguments and returns true if this component (or
-     *   any of its children) is focused and false otherwise.
-     * @param {function} focusSet A function which we call with a function
-     *   which accepts not arguments and rips focus to this component.
      * @param {function} onMinimize A function which we call with no arguments
      *   when the minimize button is pressed.
      * @param {integer} loanId The id of the loan to display details for.
@@ -1280,7 +1217,7 @@ const [
 
             this.state = {
                 state: 'loading',
-                animStyle: 'expanded',
+                desiredState: 'expanded',
                 loan: null
             };
 
@@ -1288,67 +1225,58 @@ const [
         }
 
         render() {
-            let [component, componentArgs, componentChildren] = this.renderInner();
             return React.createElement(
-                HeightEased,
+                SmartHeightEased,
                 {
-                    component: component,
-                    componentArgs: componentArgs,
-                    componentChildren: componentChildren,
-                    style: this.state.animStyle
-                }
+                    initialState: 'expanded',
+                    desiredState: this.state.desiredState
+                },
+                this.renderInner()
             );
         }
 
         renderInner() {
             if(this.state.state === 'loading') {
-                return [
+                return React.createElement(
                     'div',
                     {className: 'loan loan-loading'},
                     React.createElement(Spinner)
-                ];
+                );
             }
 
             if (this.state.state === 'errored') {
-                return [
+                return React.createElement(
                     'div',
                     {className: 'loan loan-errored'},
                     'Something went wrong with this loan! Reload the page.'
-                ];
+                );
             }
 
 
             let kwargs = Object.assign({}, this.state.loan);
-            kwargs.focusQuery = this.props.focusQuery;
-            kwargs.focusSet = this.props.focusSet;
             kwargs.onMinimize = this.props.onMinimize;
             kwargs.showRefreshButton = true;
             kwargs.onRefresh = (() => {
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
-                    newState.animStyle = 'closing';
+                    newState.desiredState = 'closed';
                     return newState;
                 });
 
                 setTimeout(() => {
                     this.setState({
                         state: 'loading',
-                        animStyle: 'expanding',
+                        desiredState: 'expanded',
                         loan: null
                     });
 
                     setTimeout(() => {
-                        this.setState({
-                            state: 'loading',
-                            animStyle: 'expanding',
-                            loan: null
-                        });
                         this.fetchLoan(true);
                     }, 500);
                 }, 500);
             }).bind(this);
 
-            return [LoanDetails, kwargs, null];
+            return React.createElement(LoanDetails, kwargs);
         }
 
         fetchLoan(force) {
@@ -1372,14 +1300,14 @@ const [
             }).then((data) => {
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
-                    newState.animStyle = 'closing';
+                    newState.desiredState = 'closed';
                     return newState;
                 })
 
                 setTimeout(() => {
                     this.setState({
                         state: 'loaded',
-                        animStyle: 'expanding',
+                        desiredState: 'expanded',
                         loan: {
                             loanId: this.props.loanId,
                             lender: data.basic.lender,
@@ -1444,29 +1372,21 @@ const [
                     });
                 }, 500);
             }).catch(() => {
-                this.setState({state: 'errored', animStyle: 'expanded', loan: null});
+                this.setState({state: 'errored', desiredState: 'expanded', loan: null});
             });
         }
     };
 
     LoanDetailsAjax.propTypes = {
-        focusQuery: PropTypes.func,
-        focusSet: PropTypes.func,
         onMinimize: PropTypes.func,
         loanId: PropTypes.number.isRequired
     };
 
     /**
      * This is the most typical way to expose a loan summary. This is loaded
-     * completely with ajax, displays a loan summary, and when clicked swaps
-     * from summary view to detail view. It then handles navigation back to
-     * summary view.
+     * completely with ajax, displays a loan summary, and can swap from summary
+     * view to detail view. It also handles navigation back to summary view.
      *
-     * @param {function} focusQuery A function which we call with a function
-     *   which accepts no arguments and returns true if this component (or
-     *   any of its children) is focused and false otherwise.
-     * @param {function} focusSet A function which we call with a function
-     *   which accepts not arguments and rips focus to this component.
      * @param {integer} loanId The id of the loan which this should load and
      *   display
      */
@@ -1482,9 +1402,7 @@ const [
 
         render() {
             let kwargs = {
-                loanId: this.props.loanId,
-                focusQuery: this.props.focusQuery,
-                focusSet: this.props.focusSet
+                loanId: this.props.loanId
             };
 
             if (this.state.summary) {
@@ -1496,8 +1414,7 @@ const [
 
             return React.createElement(
                 this.state.summary ? LoanSummaryAjax : LoanDetailsAjax,
-                kwargs,
-                null
+                kwargs
             );
         }
 
@@ -1510,30 +1427,18 @@ const [
         }
     };
 
+    LoanSummaryWithClickToDetails.propTypes = {
+        loanId: PropTypes.number.isRequired
+    };
+
     /**
-     * Displays a list of loan summaries where clicking one toggles between
-     * summary and detail view. This does not handle deciding what loans
-     * should go in the list.
+     * Displays a list of loan summaries which can be toggled to a more detailed
+     * view. This does not handle deciding what loans should go in the list.
      *
-     * As is true with all ajax queries which we anticipate client-side
-     * caching on we allow the client to hit a refresh button to cache-bust.
-     * We also assume that listings might be paginated and provide a show
-     * more button.
+     * As is true with all ajax queries which we support client-side caching on
+     * we allow the client to hit a refresh button to cache-bust. We also assume
+     * that listings might be paginated and provide a show more button.
      *
-     * This supports keyboard-only navigation. For minimized loans, up/down
-     * will move between loans and space to expand. For expanded loans,
-     * left/right/up/down navigates within the loan and tab/shift tab move
-     * between loans. There's a button to minimize which can be selected
-     * (focus + space) to minimize. Whenever a loan (or any component
-     * within which doesn't use home/end itself) is focused, Home/End will
-     * minimize if not already minimized and otherwise jump to the first/last
-     * loan in the list respectively.
-     *
-     * @param {function} focusQuery A function which we call with a function
-     *   which accepts no arguments and returns true if this component (or
-     *   any of its children) is focused and false otherwise.
-     * @param {function} focusSet A function which we call with a function
-     *   which accepts not arguments and rips focus to this component.
      * @param {Array<integer>} loanIds A possibly empty array of loan ids which
      *   should be displayed in this list
      * @param {bool} showRefreshButton True to show a button for reloading
@@ -1604,8 +1509,6 @@ const [
     }
 
     LoanList.propTypes = {
-        focusQuery: PropTypes.func,
-        focusSet: PropTypes.func,
         loanIds: PropTypes.arrayOf(PropTypes.number).isRequired,
         showRefreshButton: PropTypes.bool,
         onRefresh: PropTypes.func,
@@ -1622,11 +1525,6 @@ const [
      *
      * This will always show a refresh button.
      *
-     * @param {function} focusQuery A function which we call with a function
-     *   which accepts no arguments and returns true if this component (or
-     *   any of its children) is focused and false otherwise.
-     * @param {function} focusSet A function which we call with a function
-     *   which accepts not arguments and rips focus to this component.
      * @param {object} parameters The query parameters to the loans index
      *   endpoint. Should not include any pagination parameters such as
      *   limit, minId, and maxId
@@ -1691,8 +1589,6 @@ const [
             return React.createElement(
                 LoanList,
                 {
-                    focusQuery: this.props.focusQuery,
-                    focusSet: this.props.focusSet,
                     loanIds: this.state.loanIds,
                     showRefreshButton: true,
                     onRefresh: (() => this.onRefresh(true, false)).bind(this),
@@ -1705,7 +1601,6 @@ const [
         }
 
         onRefresh(force, skipTimeout) {
-            console.log(this.state)
             force = !!force;
             skipTimeout = !!skipTimeout;
 
@@ -1773,10 +1668,6 @@ const [
                     return newState;
                 });
             }).catch((msg) => {
-                console.log(msg);
-                msg = msg.toString();
-                console.log(msg);
-
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
                     newState.refreshContentLoaded = true;
@@ -1846,6 +1737,11 @@ const [
         }
     }
 
+    LoanListAjax.propTypes = {
+        parameters: PropTypes.object,
+        pageSize: PropTypes.number.isRequired
+    };
+
     /**
      * Displays a form which contains all the possible filters on loans and
      * exposes the values on all the fields. This doesn't actually do anything
@@ -1880,22 +1776,8 @@ const [
      *   + Limit
      *   + Include Deleted? (admin only)
      *
-     * This supports keyboard-only navigation. When a component which doesn't
-     * use arrow keys is focused, tab will jump past this component and arrow
-     * keys can be used to jump within this component. When a component which
-     * uses arrow keys is focused, tab will jump to the component and arrow
-     * keys will manipulate the component. Left/right/up/down acts as is
-     * visually appropriate. Home minimizes the filter (if expanded) and
-     * focuses the preset. End expands the filter (if minimized) and focuses
-     * the first basic option. Space is always used for button selection.
-     *
      * @param {string} username The username of the logged in user. Used for
      *   many of the presets.
-     * @param {function} focusQuery A function which we call with a function
-     *   which accepts no arguments and returns true if this component (or
-     *   any of its children) is focused and false otherwise.
-     * @param {function} focusSet A function which we call with a function
-     *   which accepts not arguments and rips focus to this component.
      * @param {bool} includeDeletedOption If true, the Include Deleted?
      *   bonus field will be visible. Otherwise, if false, the Include
      *   Deleted? bonus field will not be visible.
@@ -2043,7 +1925,6 @@ const [
                     }
                 }
             }
-
             this.presetQuery = null;
             this.presetSet = null;
             this.extraFilterQuery = null;
@@ -2147,7 +2028,9 @@ const [
                                             labelText: 'Select Filter To Add',
                                             component: DropDown,
                                             componentArgs: {
-                                                options: this.state.extraFilters.map((filterKey) => {
+                                                options: this.state.extraFilters.filter((filterKey) => {
+                                                    return filterKey !== 'deleted' || this.props.includeDeletedOption;
+                                                }).map((filterKey) => {
                                                     return { key: filterKey, text: this.allFilters[filterKey].extraFilterText };
                                                 }),
                                                 optionQuery: ((query) => this.extraFilterQuery = query).bind(this)
@@ -2263,6 +2146,13 @@ const [
         }
     };
 
+    LoanFilterForm.propTypes = {
+        username: PropTypes.string,
+        includeDeletedOption: PropTypes.bool,
+        filterChanged: PropTypes.func,
+        filterQuery: PropTypes.func
+    };
+
     /**
      * Displays a loan filter form and uses it to fill a loan list.
      * This will provide all the expected features:
@@ -2279,12 +2169,6 @@ const [
      * - Key-space pagination
      * - WCAG-AAA contrast throughout.
      * - Mobile friendly design
-     *
-     * @param {function} focusQuery A function which we call with a function
-     *   which accepts no arguments and returns true if this component (or
-     *   any of its children) is focused and false otherwise.
-     * @param {function} focusSet A function which we call with a function
-     *   which accepts not arguments and rips focus to this component.
      */
     class LoanFilterFormWithList extends React.Component {
         constructor(props) {
@@ -2297,7 +2181,8 @@ const [
                 timeout: null,
                 params: null,
                 minimizing: false,
-                username: null
+                username: null,
+                showDeleted: false
             }
 
             if (AuthHelper.isLoggedIn()) {
@@ -2315,6 +2200,21 @@ const [
                         return newState;
                     });
                 });
+
+                api_fetch(
+                    `/api/users/${AuthHelper.getAuthToken().userId}/permissions`, AuthHelper.auth()
+                ).then((res) => {
+                    if (!res.ok) {
+                        return Promise.reject(res.statusText);
+                    }
+                    return res.json();
+                }).then((json) => {
+                    this.setState((state) => {
+                        let newState = Object.assign({}, state);
+                        newState.showDeleted = json.permissions.includes('view_deleted_loans');
+                        return newState;
+                    });
+                })
             }
         }
 
@@ -2328,6 +2228,7 @@ const [
                         {
                             key: 'filter-form',
                             username: this.state.username,
+                            includeDeletedOption: this.state.showDeleted,
                             filterQuery: ((query) => { this.filterQuery = query; }).bind(this),
                             filterChanged: this.onFilterChanged.bind(this)
                         }
@@ -2432,10 +2333,7 @@ const [
         }
     }
 
-    LoanFilterFormWithList.propTypes = {
-        focusQuery: PropTypes.func,
-        focusSet: PropTypes.func
-    };
+    LoanFilterFormWithList.propTypes = {};
 
     return [
         LoanSummary, LoanSummaryAjax, LoanList, LoanListAjax, LoanDetails,

@@ -6,6 +6,9 @@ ReactDOM.render(
         React.createElement('div',
             {key: 'main', className: 'main'},
             React.createElement(LoanFilterFormWithList)
+        ),
+        React.createElement('div',
+            {key: 'padding', style: { height: '100vh' }}
         )
     ]),
     document.getElementById('content')
