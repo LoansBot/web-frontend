@@ -1755,6 +1755,7 @@ const [
      *
      * - "My Inprogress Loans"
      * - "My Loans"
+     * - "My Unpaid Loans"
      * - "All Loans"
      *
      * In expanded mode it expands the height of the component (not a popup)
@@ -1958,6 +1959,8 @@ const [
                                     componentArgs: {
                                         options: (this.props.username === null ? [] : [
                                             {key: 'inprogress', text: 'My Inprogress Loans'},
+                                            {key: 'mine', text: 'My Loans'},
+                                            {key: 'unpaid', text: 'My Unpaid Loans'}
                                         ]).concat([
                                             {key: 'all', text: 'All Loans'},
                                             {key: 'custom', text: 'Custom Search'}
@@ -2081,11 +2084,23 @@ const [
         applyPreset(preset) {
             this.clearAllFilters(false);
             if (preset === 'all') {
+                this.setShownFilters(['user', 'state'])
             }else if (preset === 'inprogress') {
                 this.allFilters.user.lenderSet(this.props.username);
                 this.allFilters.user.borrowerSet(this.props.username);
                 this.allFilters.user.operatorSet('OR');
                 this.allFilters.state.stateSet('inprogress');
+                this.setShownFilters(['user', 'state']);
+            }else if (preset === 'mine') {
+                this.allFilters.user.lenderSet(this.props.username);
+                this.allFilters.user.borrowerSet(this.props.username);
+                this.allFilters.user.operatorSet('OR');
+                this.setShownFilters(['user']);
+            } else if (preset === 'unpaid') {
+                this.allFilters.user.lenderSet(this.props.username);
+                this.allFilters.user.borrowerSet(this.props.username);
+                this.allFilters.user.operatorSet('OR');
+                this.allFilters.state.stateSet('unpaid-only');
                 this.setShownFilters(['user', 'state']);
             }
 
