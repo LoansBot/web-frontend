@@ -435,8 +435,7 @@ const [
      * a loan summary (see LoanSummaryWithClickToDetails).
      *
      * @param {function} onMinimize If not null a minimize button will be shown
-     *   and this function will be triggered if it's clicked. This should not
-     *   be the only way to minimize a component.
+     *   and this function will be triggered if it's clicked.
      * @param {bool} showRefreshButton If true a refresh button is displayed
      *   which when clicked triggers onRefresh. This should reload the content
      *   of this loan summary. It's important that even if the content does not
@@ -661,7 +660,7 @@ const [
                                         }
                                     )
                                 ] : []
-                            ).concat([
+                            ).concat(this.props.onMinimize ? [
                                 React.createElement(
                                     Button,
                                     {
@@ -672,7 +671,7 @@ const [
                                         onClick: this.props.onMinimize
                                     }
                                 )
-                            ])
+                            ] : [])
                         )
                     ),
                     React.createElement(
@@ -1110,7 +1109,7 @@ const [
                             this.props.unpaidAt ? 'Marked unpaid' : 'Not marked unpaid'
                         )
                     ),
-                    React.createElement(
+                    (this.props.onMinimize ? React.createElement(
                         'div',
                         {key: 'buttons-bottom', className: 'loan-row'},
                         React.createElement(
@@ -1143,7 +1142,10 @@ const [
                                 )
                             ])
                         )
-                    )
+                    ) : React.createElement(
+                        React.Fragment,
+                        {key: 'buttons-bottom'}
+                    ))
                 ])
             );
         }

@@ -1,4 +1,12 @@
+.standard-spinner-wrapper {
+    display: block;
+    text-align: center;
+    border: 1px solid black;
+    border-radius: 4px;
+}
+
 /* https://loading.io/css/ */
+
 .lds-roller {
     display: inline-block;
     position: relative;
