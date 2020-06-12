@@ -542,6 +542,8 @@ const [
      *   only be set if the principal is less than the principal repayment.
      * @param {Date, null} deletedAt When this loan was marked as deleted.
      *   If set it implies this loan is soft-deleted.
+     * @param {bool} includeEditOption If true there will be a link to edit the
+     *   loan. If false or null no such option will be shown.
      */
     class LoanDetails extends React.Component {
         render() {
@@ -1109,14 +1111,14 @@ const [
                             this.props.unpaidAt ? 'Marked unpaid' : 'Not marked unpaid'
                         )
                     ),
-                    (this.props.onMinimize ? React.createElement(
+                    ((this.props.onMinimize || this.props.includeEditOption) ? React.createElement(
                         'div',
                         {key: 'buttons-bottom', className: 'loan-row'},
                         React.createElement(
                             'span',
                             {className: 'loan-buttons loan-buttons-' + (this.props.showRefreshButton ? '2' : '1')},
                             (
-                                this.props.showRefreshButton ? [
+                                ((!this.props.includeEditOption || !this.props.onMinimize) && this.props.showRefreshButton) ? [
                                     React.createElement(
                                         Button,
                                         {
@@ -1129,7 +1131,7 @@ const [
                                         }
                                     )
                                 ] : []
-                            ).concat([
+                            ).concat(this.props.onMinimize ? [
                                 React.createElement(
                                     Button,
                                     {
@@ -1140,7 +1142,20 @@ const [
                                         onClick: this.props.onMinimize
                                     }
                                 )
-                            ])
+                            ] : []).concat(this.props.includeEditOption ? [
+                                React.createElement(
+                                    Button,
+                                    {
+                                        key: 'edit',
+                                        text: 'Edit',
+                                        style: 'secondary',
+                                        type: 'button',
+                                        onClick: (() => {
+                                            window.location.href = `/loan.html?id=${this.props.loanId}`;
+                                        }).bind(this)
+                                    }
+                                )
+                            ] : [])
                         )
                     ) : React.createElement(
                         React.Fragment,
@@ -1212,6 +1227,8 @@ const [
      * @param {function} onMinimize A function which we call with no arguments
      *   when the minimize button is pressed.
      * @param {integer} loanId The id of the loan to display details for.
+     * @param {bool} includeEditOption If true there will be a link to edit the
+     *   loan. If false or null no such option will be shown.
      */
     class LoanDetailsAjax extends React.Component {
         constructor(props) {
@@ -1258,6 +1275,7 @@ const [
             let kwargs = Object.assign({}, this.state.loan);
             kwargs.onMinimize = this.props.onMinimize;
             kwargs.showRefreshButton = true;
+            kwargs.includeEditOption = this.props.includeEditOption;
             kwargs.onRefresh = (() => {
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
@@ -1381,7 +1399,8 @@ const [
 
     LoanDetailsAjax.propTypes = {
         onMinimize: PropTypes.func,
-        loanId: PropTypes.number.isRequired
+        loanId: PropTypes.number.isRequired,
+        includeEditOption: PropTypes.bool
     };
 
     /**
@@ -1391,6 +1410,8 @@ const [
      *
      * @param {integer} loanId The id of the loan which this should load and
      *   display
+     * @param {bool} includeEditOption If true there will be a link to edit the
+     *   loan. If false or null no such option will be shown.
      */
     class LoanSummaryWithClickToDetails extends React.Component {
         constructor(props) {
@@ -1404,7 +1425,8 @@ const [
 
         render() {
             let kwargs = {
-                loanId: this.props.loanId
+                loanId: this.props.loanId,
+                includeEditOption: this.props.includeEditOption
             };
 
             if (this.state.summary) {
@@ -1430,7 +1452,8 @@ const [
     };
 
     LoanSummaryWithClickToDetails.propTypes = {
-        loanId: PropTypes.number.isRequired
+        loanId: PropTypes.number.isRequired,
+        includeEditOption: PropTypes.bool
     };
 
     /**
@@ -1456,6 +1479,8 @@ const [
      *   clicked
      * @param {bool} seeMoreDisabled No meaning unless showSeeMoreButton is
      *   true. Sets the disabled state on the see more button.
+     * @param {bool} includeEditOption If true there will be a link to edit the
+     *   loan for each loan. If false or null no such option will be shown.
      */
     class LoanList extends React.Component {
         render() {
@@ -1469,8 +1494,12 @@ const [
                         this.props.loanIds.map((i) => {
                             return React.createElement(
                                 LoanSummaryWithClickToDetails,
-                                {key: `loan-${i}`, loanId: i}
-                            )
+                                {
+                                    key: `loan-${i}`,
+                                    loanId: i,
+                                    includeEditOption: this.props.includeEditOption
+                                }
+                            );
                         })
                     )
                 ].concat((!this.props.showSeeMoreButton && !this.props.showRefreshButton) ? [] : [
@@ -1516,7 +1545,8 @@ const [
         onRefresh: PropTypes.func,
         refreshDisabled: PropTypes.bool,
         showSeeMoreButton: PropTypes.func,
-        seeMoreDisabled: PropTypes.bool
+        seeMoreDisabled: PropTypes.bool,
+        includeEditOption: PropTypes.bool
     }
 
     /**
@@ -1532,6 +1562,9 @@ const [
      *   limit, minId, and maxId
      * @param {integer} pageSize The target size per page, i.e., how many more
      *   items you see when you click "see more"
+     * @param {bool} includeEditOption If true there will be a button to edit
+     *   the loan. If false or null, there will not be a button to edit the
+     *   loan.
      */
     class LoanListAjax extends React.Component {
         constructor(props) {
@@ -1597,7 +1630,8 @@ const [
                     refreshDisabled: this.state.fetchingMore,
                     showSeeMoreButton: this.state.haveMore,
                     onSeeMore: this.onSeeMore.bind(this),
-                    seeMoreDisabled: this.state.fetchingMore
+                    seeMoreDisabled: this.state.fetchingMore,
+                    includeEditOption: this.props.includeEditOption
                 }
             );
         }
@@ -1741,7 +1775,8 @@ const [
 
     LoanListAjax.propTypes = {
         parameters: PropTypes.object,
-        pageSize: PropTypes.number.isRequired
+        pageSize: PropTypes.number.isRequired,
+        includeEditOption: PropTypes.bool
     };
 
     /**
@@ -2199,7 +2234,8 @@ const [
                 params: null,
                 minimizing: false,
                 username: null,
-                showDeleted: false
+                showDeleted: false,
+                includeEditOption: false
             }
 
             if (AuthHelper.isLoggedIn()) {
@@ -2229,6 +2265,7 @@ const [
                     this.setState((state) => {
                         let newState = Object.assign({}, state);
                         newState.showDeleted = json.permissions.includes('view_deleted_loans');
+                        newState.includeEditOption = json.permissions.includes('edit_loans');
                         return newState;
                     });
                 })
@@ -2269,7 +2306,8 @@ const [
                             {
                                 key: 'list',
                                 parameters: this.state.params,
-                                pageSize: 4
+                                pageSize: 4,
+                                includeEditOption: this.state.includeEditOption
                             }
                         )
                     )
