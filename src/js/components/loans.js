@@ -882,7 +882,7 @@ const [
                                                             ),
                                                             React.createElement(
                                                                 React.Fragment,
-                                                                {key: 'text'},
+                                                                {key: 'text2'},
                                                                 ` was unassigned.`
                                                             )
                                                         ]

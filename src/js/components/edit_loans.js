@@ -4,7 +4,24 @@ const EditLoanFormWithLogic = (function() {
      *
      * @param {string} currencyCode The currency symbol for the loan that is
      *   being edited.
-     * @param {function} onSubmit
+     * @param {string} submitStyle Describes the state of the button. One of
+     *   "enabled", "in-progress"
+     * @param {function} onSubmit A function we call with two arguments; the
+     *   first of which is always the string "standard", and the second of
+     *   which is an object with the following values:
+     *   {number} principal Null if the principal should be unchanged,
+     *     otherwise the new principal amount in the minor denomination.
+     *   {number} principal_repayment Null if the principal repayment should
+     *     be unchanged, otherwise the new principal repayment amount in the
+     *     minor denomination.
+     *   {bool} unpaid Null if the unpaid status should be unchanged, otherwise
+     *     true if the loan should be marked unpaid and false otherwise.
+     *   {Date} createdAt Null if the created at date should be unchanged,
+     *     otherwise the new created at date for the loan
+     *   {bool} deleted Null if the deleted status should be unchanged,
+     *     otherwise true if the loan should now be considered deleted adn
+     *     false otherwise
+     *   {string} reason The reason for the edit that the user put
      */
     class StandardEditForm extends React.Component {
         constructor(props) {
@@ -21,6 +38,7 @@ const EditLoanFormWithLogic = (function() {
             this.deletedEnabledQuery = null;
             this.deletedQuery = null;
             this.reasonQuery = null;
+            this.reasonFocus = null;
         }
 
         render() {
@@ -185,7 +203,7 @@ const EditLoanFormWithLogic = (function() {
                                     labelText: 'New Loan Created At',
                                     component: DateTimePicker,
                                     componentArgs: {
-                                        dateTimeQuery: ((query) => this.createdAtQuery = query).bind(this)
+                                        datetimeQuery: ((query) => this.createdAtQuery = query).bind(this)
                                     }
                                 }
                             )
@@ -249,7 +267,8 @@ const EditLoanFormWithLogic = (function() {
                             labelText: 'Reason For Edit',
                             component: TextArea,
                             componentArgs: {
-                                textQuery: ((query) => this.reasonQuery = query)
+                                textQuery: ((query) => this.reasonQuery = query),
+                                focus: ((fcs) => this.reasonFocus = fcs)
                             }
                         }
                     ),
@@ -259,7 +278,14 @@ const EditLoanFormWithLogic = (function() {
                             key: 'submit-button',
                             style: 'primary',
                             type: 'submit',
-                            text: 'Submit Change',
+                            disabled: this.props.submitStyle !== 'enabled',
+                            text: (() => {
+                                if (this.props.submitStyle === 'in-progress') {
+                                    return 'Submitting Change...';
+                                }
+
+                                return 'Submit Change';
+                            })(),
                             onClick: this.onSubmit.bind(this)
                         }
                     )
@@ -268,8 +294,33 @@ const EditLoanFormWithLogic = (function() {
         }
 
         onSubmit() {
-            // TODO parse params to this.props.onSubmit
+            if (!this.props.onSubmit) { return; }
+
+            let reason = this.reasonQuery();
+            if (!reason || reason.length < 5) {
+                console.log('reason too short');
+                this.reasonFocus();
+                return;
+            }
+
+            this.props.onSubmit(
+                'standard',
+                {
+                    principal: this.principalEnabledQuery() ? this.principalQuery() : null,
+                    principalRepayment: this.principalRepaymentEnabledQuery() ? this.principalRepaymentQuery() : null,
+                    unpaid: this.unpaidEnabledQuery() ? this.unpaidQuery() : null,
+                    createdAt: this.createdAtEnabledQuery() ? this.createdAtQuery() : null,
+                    deleted: this.deletedEnabledQuery() ? this.deletedQuery() : null,
+                    reason: reason
+                }
+            );
         }
+    };
+
+    StandardEditForm.propTypes = {
+        currencyCode: PropTypes.string.isRequired,
+        submitStyle: PropTypes.string.isRequired,
+        onSubmit: PropTypes.func
     };
 
     /**
@@ -537,6 +588,8 @@ const EditLoanFormWithLogic = (function() {
      *
      * @param {string} currencyCode The current code for the loan that is
      *   being edited.
+     * @param {string} submitStyle Determines the state of the submit button.
+     *   One of "enabled", "in-progress"
      * @param {function} onSubmit A function we call with two arguments - the
      *   style of submission (i.e., 'standard', followed by keyword arguments
      *   that depend on the style. See StandardEditForm, ChangeUsersForm, and
@@ -611,6 +664,7 @@ const EditLoanFormWithLogic = (function() {
                             {
                                 key: 'form',
                                 currencyCode: this.props.currencyCode,
+                                submitStyle: this.props.submitStyle,
                                 onSubmit: this.props.onSubmit
                             }
                         )
@@ -621,7 +675,9 @@ const EditLoanFormWithLogic = (function() {
     };
 
     EditLoanForm.propTypes = {
-        currencyCode: PropTypes.string.isRequired
+        currencyCode: PropTypes.string.isRequired,
+        submitStyle: PropTypes.string.isRequired,
+        onSubmit: PropTypes.func
     };
 
     /**
@@ -639,8 +695,10 @@ const EditLoanFormWithLogic = (function() {
                 currencyCode: null,
                 state: 'loading',
                 desiredDisplayState: 'expanded',
+                etag: null,
                 timeout: null,
-                _alert: null
+                _alert: null,
+                requestInProgress: false
             }
 
             api_fetch(
@@ -652,13 +710,17 @@ const EditLoanFormWithLogic = (function() {
                         return Promise.reject({status: res.status, statusText: res.statusText, body: txt});
                     });
                 }
-                return res.json();
-            }).then((json) => {
+                return res.json().then((json) => {
+                    return Promise.resolve([json, res.headers.get('etag')]);
+                });
+            }).then((arr) => {
+                let [json, etag] = arr;
                 let newState = Object.assign({}, this.state);
                 newState.desiredDisplayState = 'closed';
                 newState.timeout = setTimeout((() => {
                     let newState2 = Object.assign({}, this.state);
                     newState2.currencyCode = json.currency_code;
+                    newState2.etag = etag;
                     newState2.state = 'loaded';
                     newState2.desiredDisplayState = 'expanded';
                     newState2.timeout = null;
@@ -725,6 +787,7 @@ const EditLoanFormWithLogic = (function() {
                         {
                             key: 'form',
                             currencyCode: this.state.currencyCode,
+                            submitStyle: this.state.requestInProgress ? 'in-progress' : 'enabled',
                             onSubmit: this.onSubmit.bind(this)
                         }
                     )
@@ -742,8 +805,111 @@ const EditLoanFormWithLogic = (function() {
             );
         }
 
-        onSubmit() {
+        onSubmit(typ, inf) {
+            if (this.state.requestInProgress) {
+                return;
+            }
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.requestInProgress = true;
+                return newState;
+            });
 
+            if (typ === 'standard') {
+                api_fetch(
+                    `/api/loans/${this.props.loanId}`,
+                    AuthHelper.auth({
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'If-Match': this.state.etag
+                        },
+                        body: JSON.stringify({
+                            principal_minor: inf.principal,
+                            principal_repayment_minor: inf.principalRepayment,
+                            unpaid: inf.unpaid,
+                            created_at: inf.createdAt ? (inf.createdAt.getTime() / 1000.0) : null,
+                            deleted: inf.deleted,
+                            reason: inf.reason
+                        })
+                    })
+                ).then((res) => {
+                    if (res.ok) {
+                        if (this.state.timeout) {
+                            clearTimeout(this.state.timeout);
+                        }
+                        this.setState((state) => {
+                            let newState = Object.assign({}, state);
+                            newState._alert = {
+                                title: 'Success',
+                                type: 'success',
+                                text: 'Successfully changed loan. Please wait a few seconds...'
+                            };
+                            return newState;
+                        });
+                        var seenSumm = false;
+                        var seenDets = false;
+                        api_fetch(
+                            `/api/loans/${this.props.loanId}`, AuthHelper.auth({
+                                headers: {
+                                    'Cache-Control': 'no-cache'
+                                }
+                            })
+                        ).then((res) => {
+                            if (seenDets) {
+                                window.location.reload();
+                            } else {
+                                seenSumm = true;
+                            }
+                        });
+
+                        api_fetch(
+                            `/api/loans/${this.props.loanId}/detailed`, AuthHelper.auth({
+                                headers: {
+                                    'Cache-Control': 'no-cache'
+                                }
+                            })
+                        ).then((res) => {
+                            if (seenSumm) {
+                                window.location.reload();
+                            } else {
+                                seenDets = true;
+                            }
+                        });
+                    } else if (res.status === 412) {
+                        this.setState((state) => {
+                            let newState = Object.assign({}, state);
+                            newState._alert = {
+                                title: 'Loan Changed',
+                                type: 'warning',
+                                text: 'This loan was modified since you loaded the page. Refresh the page.'
+                            };
+                            return newState;
+                        });
+                    } else if (res.status === 401 || res.status === 403) {
+                        this.setState((state) => {
+                            let newState = Object.assign({}, state);
+                            newState._alert = {
+                                title: 'Auth Failed',
+                                type: 'warning',
+                                text: 'The server rejected your credentials. Probably need to login again.'
+                            }
+                        })
+                    } else {
+                        console.log(res);
+                        this.setState((state) => {
+                            let newState = Object.assign({}, state);
+                            newState._alert = {
+                                title: `${res.status}: ${res.statusText || 'Error'}`,
+                                type: 'error',
+                                text: 'Something went wrong. Try again or contact the site administrator.'
+                            };
+                            newState.requestInProgress = false;
+                            return newState;
+                        });
+                    }
+                });
+            }
         }
     };
 

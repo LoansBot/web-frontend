@@ -54,7 +54,9 @@ const TextArea = (function() {
         }
 
         componentDidUpdate() {
-            this.textareaRef.current.value = this.props.text;
+            if (this.props.text) {
+                this.textareaRef.current.value = this.props.text;
+            }
         }
     }
 

@@ -3,7 +3,7 @@ const Alert = (function() {
     /**
      * A simple error component. Displays a message.
      * @param title The title for the component
-     * @param type One of 'success', 'info', and 'error'
+     * @param type One of 'success', 'info', 'warning', and 'error'
      * @param text The text that is displayed
      */
     class Alert extends React.Component {

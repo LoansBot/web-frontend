@@ -1,4 +1,4 @@
-.alert-error, .alert-success, .alert-info {
+.alert-error, .alert-success, .alert-info, .alert-warning {
     border-left-style: solid;
     border-left-width: 0.3em;
     padding-left: 1em;
@@ -27,4 +27,9 @@
 .alert-info {
     border-left-color: blue;
     background-color: rgb(209, 200, 255);
+}
+
+.alert-warning {
+    border-left-color: orangered;
+    background-color: rgb(255, 215, 200);
 }
