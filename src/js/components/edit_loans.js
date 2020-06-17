@@ -328,15 +328,23 @@ const EditLoanFormWithLogic = (function() {
      * loan then creating a new loan with the same state but the new set of
      * involved users.
      *
-     * @param {function} onSubmit
+     * @param {function} onSubmit A fucntion which we call with two arguments;
+     *   the first of which is always the string "users", and the second of
+     *   which is an object with the following values:
+     *   {string} lender What the lender username should be for the loan.
+     *   {string} borrower What the borrower username should be for the loan.
+     *   {string} reason The reason we needed to make this modification.
      */
     class ChangeUsersForm extends React.Component {
         constructor(props) {
             super(props);
 
             this.lenderQuery = null;
+            this.lenderFocus = null;
             this.borrowerQuery = null;
+            this.borrowerFocus = null;
             this.reasonQuery = null;
+            this.reasonFocus = null;
         }
 
         render() {
@@ -381,7 +389,8 @@ const EditLoanFormWithLogic = (function() {
                             labelText: 'New Lender Username',
                             component: TextInput,
                             componentArgs: {
-                                textQuery: ((query) => this.lenderQuery = query).bind(this)
+                                textQuery: ((query) => this.lenderQuery = query).bind(this),
+                                focus: ((fcs) => this.lenderFocus = fcs).bind(this)
                             }
                         }
                     ),
@@ -392,7 +401,8 @@ const EditLoanFormWithLogic = (function() {
                             labelText: 'New Borrower Username',
                             component: TextInput,
                             componentArgs: {
-                                textQuery: ((query) => this.borrowerQuery = query).bind(this)
+                                textQuery: ((query) => this.borrowerQuery = query).bind(this),
+                                focus: ((fcs) => this.borrowerFocus = fcs).bind(this)
                             }
                         }
                     ),
@@ -403,7 +413,8 @@ const EditLoanFormWithLogic = (function() {
                             labelText: 'Reason For Edit',
                             component: TextInput,
                             componentArgs: {
-                                textQuery: ((query) => this.reasonQuery = query).bind(this)
+                                textQuery: ((query) => this.reasonQuery = query).bind(this),
+                                focus: ((fcs) => this.reasonFocus = fcs).bind(this)
                             }
                         }
                     ),
@@ -422,9 +433,56 @@ const EditLoanFormWithLogic = (function() {
         }
 
         onSubmit() {
+            let lender = this.lenderQuery().trim();
+            let borrower = this.borrowerQuery().trim();
+            let reason = this.reasonQuery().trim();
 
+            if (lender.startsWith('/u/')) {
+                lender = lender.substring(3);
+            }
+
+            if (lender.startsWith('u/')) {
+                lender = lender.substring(2);
+            }
+
+            if (borrower.startsWith('/u/')) {
+                borrower = borrower.substring(3);
+            }
+
+            if (borrower.startsWith('u/')) {
+                borrower = borrower.substring(2);
+            }
+
+            if (lender.length < 3) {
+                this.lenderFocus();
+                return;
+            }
+
+            if (borrower.length < 3) {
+                this.borrowerFocus();
+                return;
+            }
+
+            if (reason.length < 5) {
+                this.reasonFocus();
+                return;
+            }
+
+            if (!this.props.onSubmit) {
+                return;
+            }
+
+            this.props.onSubmit('users', {
+                lender: lender,
+                borrower: borrower,
+                reason: reason
+            });
         }
     };
+
+    ChangeUsersForm.propTypes = {
+        onSubmit: PropTypes.func
+    }
 
     /**
      * Change the currency for a loan. Must specify the new principal and
@@ -908,6 +966,136 @@ const EditLoanFormWithLogic = (function() {
                             return newState;
                         });
                     }
+                });
+            } else if (typ === 'users') {
+                api_fetch(
+                    `/api/loans/${this.props.loanId}/users`,
+                    AuthHelper.auth({
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'If-Match': this.state.etag
+                        },
+                        body: JSON.stringify({
+                            lender_name: inf.lender,
+                            borrower_name: inf.borrower,
+                            reason: inf.reason
+                        })
+                    })
+                ).then((res) => {
+                    if (res.ok) {
+                        return res.json();
+                    }
+
+                    if (res.status === 422) {
+                        return res.json().then((v) => {
+                            return Promise.reject(
+                                {
+                                    title: 'Invalid Request',
+                                    type: 'warning',
+                                    text: v.detail.map((det) => {
+                                        let locStr = det.loc.join('.');
+                                        return `${locStr}: ${det.msg}`;
+                                    }).join(". ") + '.'
+                                }
+                            );
+                        });
+                    }
+
+                    if (res.status === 401 || res.status === 403) {
+                        return Promise.reject(
+                            {
+                                title: res.status === 401 ? 'Unauthorized' : 'Forbidden',
+                                type: 'warning',
+                                text: 'You need to login again or you do not have permission to do this.'
+                            }
+                        );
+                    }
+
+                    if (res.status === 410) {
+                        return Promise.reject(
+                            {
+                                title: 'Gone',
+                                type: 'error',
+                                text: 'This loan was permanently deleted. This is very unusual.'
+                            }
+                        );
+                    }
+
+                    if (res.status === 412) {
+                        return Promise.reject(
+                            {
+                                title: 'Changed',
+                                type: 'warning',
+                                text: 'The loan changed since this page was loaded. Refresh the page and try again.'
+                            }
+                        );
+                    }
+
+                    return Promise.reject(
+                        {
+                            title: `${res.status}: ${res.statusText || 'Unknown'}`,
+                            type: 'error',
+                            text: (
+                                'We received an unexpected failure response. Check your internet ' +
+                                'connection, try again later, or contact the site administrator.'
+                            )
+                        }
+                    );
+                }).then((json) => {
+                    let newLoanId = json.loan_id;
+                    this.setState((state) => {
+                        let newState = Object.assign({}, state);
+                        newState._alert = {
+                            title: 'Loan Created',
+                            type: 'success',
+                            text: (
+                                `This loan was deleted and we created loan ${newLoanId}. We will ` +
+                                'redirect in a few seconds, but you can reload the page to avoid ' +
+                                'being redirected or search for the new loan directly to get there ' +
+                                'faster.'
+                            )
+                        };
+                        return newState;
+                    });
+                    let seen = [false, false, false];
+                    setTimeout(() => {
+                        seen[0] = true;
+                        if (!seen.includes(false)) {
+                            window.location.href = `/loan.html?id=${newLoanId}`;
+                        }
+                    }, 5000);
+
+                    api_fetch(
+                        `/api/loans/${this.props.loanId}`,
+                        AuthHelper.auth({
+                            headers: { 'Cache-Control': 'no-cache' }
+                        })
+                    ).then(() => {
+                        seen[1] = true;
+                        if (!seen.includes(false)) {
+                            window.location.href = `/loan.html?id=${newLoanId}`;
+                        }
+                    });
+
+                    api_fetch(
+                        `/api/loans/${this.props.loanId}/detailed`,
+                        AuthHelper.auth({
+                            headers: { 'Cache-Control': 'no-cache' }
+                        })
+                    ).then(() => {
+                        seen[2] = true;
+                        if (!seen.includes(false)) {
+                            window.location.href = `/loan.html?id=${newLoanId}`;
+                        }
+                    });
+                }).catch((alrt) => {
+                    this.setState((state) => {
+                        let newState = Object.assign({}, state);
+                        newState._alert = alrt;
+                        newState.requestInProgress = false;
+                        return newState;
+                    });
                 });
             }
         }
