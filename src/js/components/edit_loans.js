@@ -490,7 +490,15 @@ const EditLoanFormWithLogic = (function() {
      * needing to check for currencies switching, this involves deleting this
      * loan and creating a new one with the same users.
      *
-     * @param {function} onSubmit
+     * @param {function} onSubmit A function which we call with two arguments;
+     *   the first of which is always the string "currency" and the second of
+     *   which is an object with the following values:
+     *   {string} currency The new currency for the loan
+     *   {number} principal The new principal for the loan in the minor
+     *     denomination of the new currency.
+     *   {number} principalRepayment The new principal repayment for the loan
+     *     in the minor denomination of the new currency
+     *   {string} reason The reason we needed to make this modification
      */
     class ChangeCurrencyForm extends React.Component {
         constructor(props) {
@@ -498,8 +506,11 @@ const EditLoanFormWithLogic = (function() {
 
             this.currencyQuery = null;
             this.principalQuery = null;
+            this.principalFocus = null;
             this.principalRepaymentQuery = null;
+            this.principalRepaymentFocus = null;
             this.reasonQuery = null;
+            this.reasonFocus = null;
         }
 
         render() {
@@ -581,7 +592,8 @@ const EditLoanFormWithLogic = (function() {
                                 type: 'number',
                                 min: 1,
                                 step: 1,
-                                textChanged: ((query) => this.principalQuery = query).bind(this)
+                                textQuery: ((query) => this.principalQuery = query).bind(this),
+                                focus: ((fcs) => this.principalFocus = fcs).bind(this)
                             }
                         }
                     ),
@@ -595,7 +607,8 @@ const EditLoanFormWithLogic = (function() {
                                 type: 'number',
                                 min: 0,
                                 step: 1,
-                                textChanged: ((query) => this.principalRepaymentQuery = query).bind(this)
+                                textQuery: ((query) => this.principalRepaymentQuery = query).bind(this),
+                                focus: ((fcs) => this.principalRepaymentFocus = fcs).bind(this)
                             }
                         }
                     ),
@@ -606,7 +619,8 @@ const EditLoanFormWithLogic = (function() {
                             labelText: 'Reason For Edit',
                             component: TextInput,
                             componentArgs: {
-                                textChanged: ((query) => this.reasonQuery = query).bind(this)
+                                textQuery: ((query) => this.reasonQuery = query).bind(this),
+                                focus: ((fcs) => this.reasonFocus = fcs).bind(this)
                             }
                         }
                     ),
@@ -625,9 +639,50 @@ const EditLoanFormWithLogic = (function() {
         }
 
         onSubmit() {
+            let currency = this.currencyQuery();
+            let principal = this.principalQuery();
+            let principalRepayment = this.principalRepaymentQuery();
+            let reason = this.reasonQuery();
 
+            if (!principal) {
+                this.principalFocus();
+                return;
+            }
+
+            if (!principalRepayment) {
+                this.principalRepaymentFocus();
+                return;
+            }
+
+            if (!reason) {
+                this.reasonFocus();
+                return;
+            }
+            reason = reason.trim();
+            if (reason.length < 5) {
+                this.reasonFocus();
+                return;
+            }
+
+            if (!this.props.onSubmit) {
+                return;
+            }
+
+            this.props.onSubmit(
+                'currency',
+                {
+                    currency: currency,
+                    principal: principal,
+                    principalRepayment: principalRepayment,
+                    reason: reason
+                }
+            )
         }
     };
+
+    ChangeCurrencyForm.propTypes = {
+        onSubmit: PropTypes.func
+    }
 
     /**
      * Shows a form that allows editing a loan. An admin can change every field
@@ -979,6 +1034,137 @@ const EditLoanFormWithLogic = (function() {
                         body: JSON.stringify({
                             lender_name: inf.lender,
                             borrower_name: inf.borrower,
+                            reason: inf.reason
+                        })
+                    })
+                ).then((res) => {
+                    if (res.ok) {
+                        return res.json();
+                    }
+
+                    if (res.status === 422) {
+                        return res.json().then((v) => {
+                            return Promise.reject(
+                                {
+                                    title: 'Invalid Request',
+                                    type: 'warning',
+                                    text: v.detail.map((det) => {
+                                        let locStr = det.loc.join('.');
+                                        return `${locStr}: ${det.msg}`;
+                                    }).join(". ") + '.'
+                                }
+                            );
+                        });
+                    }
+
+                    if (res.status === 401 || res.status === 403) {
+                        return Promise.reject(
+                            {
+                                title: res.status === 401 ? 'Unauthorized' : 'Forbidden',
+                                type: 'warning',
+                                text: 'You need to login again or you do not have permission to do this.'
+                            }
+                        );
+                    }
+
+                    if (res.status === 410) {
+                        return Promise.reject(
+                            {
+                                title: 'Gone',
+                                type: 'error',
+                                text: 'This loan was permanently deleted. This is very unusual.'
+                            }
+                        );
+                    }
+
+                    if (res.status === 412) {
+                        return Promise.reject(
+                            {
+                                title: 'Changed',
+                                type: 'warning',
+                                text: 'The loan changed since this page was loaded. Refresh the page and try again.'
+                            }
+                        );
+                    }
+
+                    return Promise.reject(
+                        {
+                            title: `${res.status}: ${res.statusText || 'Unknown'}`,
+                            type: 'error',
+                            text: (
+                                'We received an unexpected failure response. Check your internet ' +
+                                'connection, try again later, or contact the site administrator.'
+                            )
+                        }
+                    );
+                }).then((json) => {
+                    let newLoanId = json.loan_id;
+                    this.setState((state) => {
+                        let newState = Object.assign({}, state);
+                        newState._alert = {
+                            title: 'Loan Created',
+                            type: 'success',
+                            text: (
+                                `This loan was deleted and we created loan ${newLoanId}. We will ` +
+                                'redirect in a few seconds, but you can reload the page to avoid ' +
+                                'being redirected or search for the new loan directly to get there ' +
+                                'faster.'
+                            )
+                        };
+                        return newState;
+                    });
+                    let seen = [false, false, false];
+                    setTimeout(() => {
+                        seen[0] = true;
+                        if (!seen.includes(false)) {
+                            window.location.href = `/loan.html?id=${newLoanId}`;
+                        }
+                    }, 5000);
+
+                    api_fetch(
+                        `/api/loans/${this.props.loanId}`,
+                        AuthHelper.auth({
+                            headers: { 'Cache-Control': 'no-cache' }
+                        })
+                    ).then(() => {
+                        seen[1] = true;
+                        if (!seen.includes(false)) {
+                            window.location.href = `/loan.html?id=${newLoanId}`;
+                        }
+                    });
+
+                    api_fetch(
+                        `/api/loans/${this.props.loanId}/detailed`,
+                        AuthHelper.auth({
+                            headers: { 'Cache-Control': 'no-cache' }
+                        })
+                    ).then(() => {
+                        seen[2] = true;
+                        if (!seen.includes(false)) {
+                            window.location.href = `/loan.html?id=${newLoanId}`;
+                        }
+                    });
+                }).catch((alrt) => {
+                    this.setState((state) => {
+                        let newState = Object.assign({}, state);
+                        newState._alert = alrt;
+                        newState.requestInProgress = false;
+                        return newState;
+                    });
+                });
+            } else if (typ === 'currency') {
+                api_fetch(
+                    `/api/loans/${this.props.loanId}/currency`,
+                    AuthHelper.auth({
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'If-Match': this.state.etag
+                        },
+                        body: JSON.stringify({
+                            currency_code: inf.currency,
+                            principal_minor: inf.principal,
+                            principal_repayment_minor: inf.principalRepayment,
                             reason: inf.reason
                         })
                     })
