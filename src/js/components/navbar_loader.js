@@ -111,7 +111,11 @@ const NavbarLoader = (function() {
             let usern = username ? username : this.state.username;
             let perms = permissions ? permissions : this.state.permissions;
 
-            let show = ['home', 'loans'];
+            let show = ['home', 'loans', [
+                'Account',
+                'Open account management secondary navbar',
+                ['my-account', 'logout']
+            ]];
             if(perms) {
                 for(var i = 0, len = perms.length; i < len; i++) {
                     let itm = this.permToNavItem(perms[i]);
@@ -120,7 +124,6 @@ const NavbarLoader = (function() {
                     }
                 }
             }
-            show.push('logout');
             this.setState({
                 loading: false,
                 show: show,
@@ -215,6 +218,13 @@ const NavbarLoader = (function() {
                     current: current,
                     url: '/responses.html'
                 };
+            }else if (name === 'my-account') {
+                return {
+                    name: 'My Account',
+                    ariaLabel: 'Navigate to the manage my account page',
+                    current: current,
+                    url: '/my-account.html'
+                }
             }
         }
 
