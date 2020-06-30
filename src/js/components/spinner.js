@@ -1,4 +1,4 @@
-const Spinner = (function() {
+const [Spinner, CenteredSpinner] = (function() {
     /**
      * A simple spinner from loading.io
      */
@@ -14,5 +14,15 @@ const Spinner = (function() {
         }
     }
 
-    return Spinner;
+    class CenteredSpinner extends React.Component {
+        render() {
+            return React.createElement(
+                'div',
+                {className: 'standard-spinner-wrapper'},
+                Spinner
+            );
+        }
+    }
+
+    return [Spinner, CenteredSpinner];
 })();

@@ -6,6 +6,7 @@ const api_fetch = (function() {
      */
 
     return function(url, kwargs) {
+        // TODO: apiBase configurable
         let apiBase = 'https://staging.redditloans.com';//localStorage.getItem('rl-api-base');
         if(apiBase && url[0] === '/') {
             url = apiBase + url;
