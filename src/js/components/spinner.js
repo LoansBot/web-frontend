@@ -19,7 +19,7 @@ const [Spinner, CenteredSpinner] = (function() {
             return React.createElement(
                 'div',
                 {className: 'standard-spinner-wrapper'},
-                Spinner
+                React.createElement(Spinner)
             );
         }
     }

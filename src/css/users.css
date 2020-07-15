@@ -1,0 +1,24 @@
+.auth-method-history-event {
+    line-height: 150%;
+    margin-bottom: 0.75em;
+}
+
+.auth-method-history-event .auth-method-history-event-time {
+    font-weight: bold;
+}
+
+.user-permission {
+    background-color: #ddd;
+    margin-bottom: 2em;
+    padding: 0.5em;
+}
+
+.user-permission-name {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 1em;
+}
+
+.user-settings-title {
+    font-size: larger;
+}

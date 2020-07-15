@@ -31,12 +31,13 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                         this.props.description
                     )
                 ].concat(
-                    applyStyle == 'neither' ? [] : [
+                    this.props.applyStyle == 'neither' ? [] : [
                     React.createElement(
                         Button,
                         {
+                            key: 'button',
                             text: (
-                                applyStyle == 'grant' ? 'Grant' : 'Revoke'
+                                this.props.applyStyle == 'grant' ? 'Grant' : 'Revoke'
                             ),
                             style: 'primary',
                             type: 'button',
@@ -50,7 +51,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
 
     Permission.propTypes = {
         name: PropTypes.string.isRequired,
-        description: PropTypes.description.isRequired,
+        description: PropTypes.string.isRequired,
         applyStyle: PropTypes.string.isRequired,
         onApply: PropTypes.func
     };
@@ -85,9 +86,9 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                 return React.createElement(
                     Alert,
                     {
-                        title: this.error.title,
-                        type: this.error.type,
-                        text: this.error.text
+                        title: this.state.error.title,
+                        type: this.state.error.type,
+                        text: this.state.error.text
                     }
                 );
             }
@@ -96,7 +97,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                 Permission,
                 {
                     name: this.props.name,
-                    description: this.props.description,
+                    description: this.state.description,
                     applyStyle: this.props.applyStyle,
                     onApply: this.props.onApply
                 }
@@ -178,7 +179,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     options: this.props.permissions.slice(0).sort().map((perm) => {
                         return {
                             key: perm.name,
-                            text: (perm.granted ? '✓ ' : '') + perm
+                            text: (perm.granted ? '✓ ' : '') + perm.name
                         };
                     }),
                     initialOption: this.props.initialPermission,
@@ -191,7 +192,10 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
     };
 
     PermissionSelectForm.propTypes = {
-        permissions: PropTypes.arrayOf(PropTypes.string),
+        permissions: PropTypes.arrayOf(PropTypes.shape({
+            name: PropTypes.string.isRequired,
+            granted: PropTypes.bool.isRequired
+        })),
         initialPermission: PropTypes.string,
         permissionSet: PropTypes.func,
         permissionQuery: PropTypes.func,
@@ -261,6 +265,8 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     return newState;
                 });
             }));
+
+            this.loadPermissions();
         }
 
         render() {
@@ -272,9 +278,9 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                 return React.createElement(
                     Alert,
                     {
-                        title: this.error.title,
-                        text: this.error.text,
-                        type: this.error.type
+                        title: this.state.error.title,
+                        text: this.state.error.text,
+                        type: this.state.error.type
                     }
                 );
             }
@@ -285,10 +291,10 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     labelText: 'Permissions',
                     component: PermissionSelectForm,
                     componentArgs: {
-                        permissions: this.state.allPermissions.map((perm) => {
+                        permissions: this.state.allPermissions.map((p) => {
                             return {
-                                name: perm,
-                                granted: !!this.state.grantedPermissionsLookup[perm]
+                                name: p,
+                                granted: !!this.state.grantedPermissionsLookup[p]
                             };
                         }),
                         initialPermission: this.state.allPermissions[0],
@@ -358,6 +364,14 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     return newState;
                 });
             }).catch((err) => {
+                if (typeof(err) !== 'object' || typeof(err.title) !== 'string') {
+                    err = {
+                        title: 'Error Fetching Permissions',
+                        type: 'error',
+                        text: `Unexpected error: ${err}`
+                    };
+                }
+
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
                     newState.action = 'errored';
@@ -484,7 +498,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     React.createElement(
                         PermissionAjax,
                         {
-                            key: 'permission',
+                            key: `permission-${this.state.permission.name}`,
                             name: this.state.permission.name,
                             applyStyle: this.state.applyDisabled ? 'neither' : (
                                 this.state.permission.granted ? 'revoke' : 'grant'
@@ -548,7 +562,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
         }
 
         bustCaches(name) {
-            let args = AuthHelper.auth({headers={'Content-Cache': 'no-cache'}});
+            let args = AuthHelper.auth({headers: {'Content-Cache': 'no-cache'}});
             api_fetch(
                 `/api/authentication_methods/${this.props.authenticationMethodId}/permissions`,
                 args
@@ -598,16 +612,18 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
      * @param {func} onShowMore A function we invoke when the show more button
      *   is pressed.
      */
-    class AuthenticationMethodHistory {
+    class AuthenticationMethodHistory extends React.Component {
         render() {
             return React.createElement(
                 'div',
                 {className: 'auth-method-history'},
-                React.createElement(
-                    'ul',
-                    {className: 'auth-method-history-events'},
-                    this.mapHistory(this.props.history)
-                ).concat(
+                (history ? [
+                    React.createElement(
+                        'ul',
+                        {key: 'old-history', className: 'auth-method-history-events'},
+                        this.mapHistory(this.props.history)
+                    )
+                ] : []).concat(
                     this.props.newHistory ? [
                         React.createElement(
                             SmartHeightEased,
@@ -619,7 +635,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                             React.createElement(
                                 'ul',
                                 {className: 'auth-method-history-events auth-method-history-events-new'},
-                                this.mapHistory(this.props.newHistory)
+                                this.mapHistory(this.props.newHistory, true)
                             )
                         )
                     ] : []
@@ -657,28 +673,28 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
             );
         }
 
-        mapHistory(history) {
+        mapHistory(history, isNew) {
             return history.map((evt, idx) => {
                 return [
                     React.createElement(
                         'li',
                         {
-                            key: `event-${idx}`,
+                            key: `event-${idx}-${isNew ? 'new' : 'old'}`,
                             className: 'auth-method-history-event'
                         },
                         [
                             React.createElement(
-                                React.Fragment,
-                                {key: 'txt-on'},
-                                'At '
-                            ),
-                            React.createElement(
-                                TextDateTime,
+                                'span',
                                 {
                                     key: 'occurred-at',
-                                    time: evt.occurredAt,
-                                    style: 'absolute'
-                                }
+                                    className: 'auth-method-history-event-time'
+                                },
+                                React.createElement(
+                                    TextDateTime,
+                                    {
+                                        time: evt.occurredAt
+                                    }
+                                )
                             ),
                             React.createElement(
                                 React.Fragment,
@@ -708,7 +724,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                                     } else {
                                         return ' triggered the ' + evt.eventType + ' event.';
                                     }
-                                })
+                                })()
                             )
                         ].concat(evt.reason ? [
                             React.createElement(
@@ -752,7 +768,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
      * @param {number} authenticationMethodId The primary key of the
      *   authentication method whose history should be shown.
      */
-    class AuthenticationMethodHistoryAjax {
+    class AuthenticationMethodHistoryAjax extends React.Component {
         constructor(props) {
             super(props);
             this.pageSize = 4;
@@ -820,7 +836,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                 newState.alertState = 'closed';
                 return newState;
             });
-            rawGetMoreHistory();
+            this.rawGetMoreHistory();
         }
 
         rawGetMoreHistory() {
@@ -843,18 +859,39 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     });
                 }
 
+                if (resp.status === 204) {
+                    return {history: []}
+                }
+
+                return resp.json();
+            }).then((json) => {
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
                     newState.loading = false;
                     newState.history = state.history.concat(state.newHistory);
-                    newState.newHistory = resp.history;
+                    newState.newHistory = json.history.map((itm) => {
+                        return {
+                            eventType: itm.event_type,
+                            reason: itm.reason,
+                            permission: itm.permission,
+                            username: itm.username,
+                            occurredAt: new Date(itm.occurred_at * 1000)
+                        }
+                    });
                     newState.newHistoryCounter += 1;
-                    newState.haveMore = !!resp.next_id;
-                    newState.nextId = resp.next_id;
+                    newState.haveMore = !!json.next_id;
+                    newState.nextId = json.next_id;
                     newState.alertState = 'closed';
                     return newState;
                 });
             }).catch((alrt) => {
+                if (typeof(alrt) !== 'object' || typeof(alrt.title) !== 'string') {
+                    alrt = {
+                        title: 'Unknown Error',
+                        type: 'error',
+                        text: `Unexpected error while fetching auth method history: ${alrt}`
+                    };
+                }
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
                     newState.loading = false;
@@ -917,6 +954,8 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
      * @param {function} reasonSet Called with a function which accepts a
      *   string and sets the reason text field value to the specified reason.
      *   Usually used for clearing the reason after an operation.
+     * @param {function} reasonFocus Called with a function which jumps focus
+     *   to the reason field
      * @param {function} onPasswordReset A function we call when the user
      *   clicks to reset their password. This should randomly generate a new
      *   password, save it remotely, and update this component with the
@@ -1006,12 +1045,12 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                                 }).bind(this)
                             }
                         ),
-                    ].concat(this.props.childrenLoaded ? [
+                    ].concat(this.state.childrenLoaded ? [
                             React.createElement(
                                 SmartHeightEased,
                                 {
                                     key: 'history',
-                                    initialState: 'closed',
+                                    initialState: 'expanded',
                                     desiredState: this.state.childrenState
                                 },
                                 this.props.children
@@ -1080,7 +1119,8 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                             componentArgs: {
                                 type: 'text',
                                 textQuery: this.props.reasonQuery,
-                                textSet: this.props.reasonSet
+                                textSet: this.props.reasonSet,
+                                focus: this.props.reasonFocus
                             }
                         }
                     ),
@@ -1159,6 +1199,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
         password: PropTypes.string,
         reasonQuery: PropTypes.func,
         reasonSet: PropTypes.func,
+        reasonFocus: PropTypes.func,
         onPasswordReset: PropTypes.func,
         onDelete: PropTypes.func,
         onRevokeAll: PropTypes.func,
@@ -1180,6 +1221,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
 
             this.reasonSet = null;
             this.reasonQuery = null;
+            this.reasonFocus = null;
 
             this.state = {
                 action: 'loading',
@@ -1250,6 +1292,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                             password: this.state.password,
                             reasonQuery: ((query) => this.reasonQuery = query).bind(this),
                             reasonSet: ((setter) => this.reasonSet = setter).bind(this),
+                            reasonFocus: ((fcs) => this.reasonFocus = fcs).bind(this),
                             onPasswordReset: this.onPasswordReset.bind(this),
                             onDelete: this.onDelete.bind(this),
                             onRevokeAll: this.onRevokeAll.bind(this),
@@ -1268,20 +1311,22 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
         getAuthenticationMethod(skipLoadingCheck) {
             if (!skipLoadingCheck && this.state.action === 'loading') { return; }
 
-            this.setState((state) => {
-                let newState = Object.assign({}, state);
-                newState.action = 'loading';
-                newState.alertState = 'closed';
-                newState.main = null;
-                newState.deleted = null;
-                newState.activeGrants = null;
-                newState.password = null;
-                newState.disabled = true;
-                return newState;
-            });
+            if (!skipLoadingCheck) {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.action = 'loading';
+                    newState.alertState = 'closed';
+                    newState.main = null;
+                    newState.deleted = null;
+                    newState.activeGrants = null;
+                    newState.password = null;
+                    newState.disabled = true;
+                    return newState;
+                });
+            }
 
             api_fetch(
-                `/api/authentication_methods/${this.authenticationMethodId}`,
+                `/api/authentication_methods/${this.props.authenticationMethodId}`,
                 AuthHelper.auth({
                     headers: { 'Cache-Control': 'no-cache' }
                 })
@@ -1291,14 +1336,14 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                         return Promise.reject({
                             title: '404: Not Found',
                             type: 'error',
-                            text: `Could not find an authentication method with id ${this.authenticationMethodId}. We might need to login again.`
+                            text: `Could not find an authentication method with id ${this.props.authenticationMethodId}. We might need to login again.`
                         });
                     }
 
                     return Promise.reject({
                         title: `${resp.status}: ${resp.statusText}`,
                         type: 'error',
-                        text: `Failed to load authentication method ${this.authenticationMethodId}`
+                        text: `Failed to load authentication method ${this.props.authenticationMethodId}`
                     });
                 }
 
@@ -1358,7 +1403,6 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                 })
             ).then((resp) => {
                 if (!resp.ok) {
-                    resp.body();
                     return Promise.reject({
                         title: `${resp.status}: ${resp.statusText}`,
                         type: 'error',
@@ -1366,7 +1410,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     });
                 }
 
-                this.setState(() => {
+                this.setState((state) => {
                     let newState = Object.assign({}, state);
                     newState.disabled = false;
                     newState.alertState = 'expanded';
@@ -1379,7 +1423,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     return newState;
                 });
             }).catch((err) => {
-                this.setState(() => {
+                this.setState((state) => {
                     let newState = Object.assign({}, state);
                     newState.disabled = false;
                     newState.alertState = 'expanded';
@@ -1423,7 +1467,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     });
                 }
 
-                this.setState(() => {
+                this.setState((state) =>  {
                     let newState = Object.assign({}, state);
                     newState.disabled = true;
                     newState.alertState = 'expanded';
@@ -1436,7 +1480,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                 });
                 this.getAuthenticationMethod(true);
             }).catch((err) => {
-                this.setState(() => {
+                this.setState((state) =>  {
                     let newState = Object.assign({}, state);
                     newState.disabled = false;
                     newState.alertState = 'expanded';
@@ -1448,6 +1492,12 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
 
         onRevokeAll() {
             if (this.state.disabled) { return; }
+
+            const reason = this.reasonQuery();
+            if (reason.length < 3) {
+                this.reasonFocus();
+                return;
+            }
 
             this.setState((state) => {
                 let newState = Object.assign({}, state);
@@ -1467,7 +1517,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     method: 'DELETE',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        reason: this.reasonQuery()
+                        reason: reason
                     })
                 })
             ).then((resp) => {
@@ -1480,7 +1530,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     });
                 }
 
-                this.setState(() => {
+                this.setState((state) =>  {
                     let newState = Object.assign({}, state);
                     newState.disabled = true;
                     newState.alertState = 'expanded';
@@ -1496,7 +1546,14 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     this.props.onPermissionsChanged();
                 }
             }).catch((err) => {
-                this.setState(() => {
+                if (type(err) !== 'object' || type(err.title) !== 'string') {
+                    err = {
+                        title: 'Unknown Error',
+                        text: `Received and error: ${err} - double check inputs (e.g., Reason), check network tab.`,
+                        type: 'error'
+                    };
+                }
+                this.setState((state) =>  {
                     let newState = Object.assign({}, state);
                     newState.disabled = false;
                     newState.alertState = 'expanded';
@@ -1540,7 +1597,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     });
                 }
 
-                this.setState(() => {
+                this.setState((state) =>  {
                     let newState = Object.assign({}, state);
                     newState.disabled = true;
                     newState.alertState = 'expanded';
@@ -1552,7 +1609,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     return newState;
                 });
             }).catch((err) => {
-                this.setState(() => {
+                this.setState((state) =>  {
                     let newState = Object.assign({}, state);
                     newState.disabled = false;
                     newState.alertState = 'expanded';
@@ -1625,7 +1682,8 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
 
     /**
      * Uses ajax to fetch all the authentication methods on a given user, then
-     * allows the user to select amongst them.
+     * allows the user to select amongst them. Also potentially allows the user
+     * to add a new authentication method.
      *
      * @param {number} userId The primary key of the user whose authentication
      *   methods should be listed.
@@ -1646,10 +1704,13 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                 },
                 alertState: 'closed',
                 authenticationMethodIds: null,
-                initialAuthenticationMethodId: null
+                initialAuthenticationMethodId: null,
+                canAddAuthenticationMethod: false
             };
 
-            getAuthenticationMethodIds(true);
+            this.timeout = null;
+
+            this.getAuthenticationMethodIds(true);
         }
 
         render() {
@@ -1690,6 +1751,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     React.createElement(
                         AuthenticationMethodSelectForm,
                         {
+                            key: 'auth-methods-select-form',
                             authenticationMethodIds: this.state.authenticationMethodIds,
                             initialAuthenticationMethodId: this.state.initialAuthenticationMethodId,
                             authMethodQuery: this.props.authMethodQuery,
@@ -1697,22 +1759,90 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                             authMethodChanged: this.props.authMethodChanged
                         }
                     ),
-                    alert
-                ]
+                ].concat(!this.state.canAddAuthenticationMethod ? [] : [
+                    React.createElement(
+                        Button,
+                        {
+                            key: 'auth-methods-add-auth-method',
+                            text: 'Add Authentication Method',
+                            style: 'secondary',
+                            onClick: (() => {
+                                if (this.state.action === 'loading') { return; }
+                                if (this.timeout) {
+                                    clearTimeout(this.timeout);
+                                    this.timeout = null;
+                                }
+
+                                this.setState((state) => {
+                                    let newState = Object.assign({}, state);
+                                    newState.action = 'loading';
+                                    newState.alertState = 'closed';
+                                    return newState;
+                                });
+
+                                api_fetch(
+                                    `/api/users/${this.props.userId}/authentication_methods`,
+                                    AuthHelper.auth({method: 'POST'})
+                                ).then((resp) => {
+                                    if (!resp.ok) {
+                                        this.setState((state) => {
+                                            let newState = Object.assign({}, state);
+                                            newState.action = 'errored';
+                                            newState.alert = {
+                                                title: `${resp.status}: ${resp.statusText || 'Unknown'}`,
+                                                text: 'You might not have permission to add an authentication method, or might need to relogin. Will reload in 5 seconds',
+                                                type: 'error'
+                                            };
+                                            newState.alertState = 'expanded';
+                                            return newState;
+                                        });
+                                        this.timeout = setTimeout((() => {
+                                            this.getAuthenticationMethodIds(true);
+                                        }).bind(this), 5000);
+                                        return;
+                                    }
+
+                                    this.getAuthenticationMethodIds(true);
+                                }).catch((e) => {
+                                    this.setState((state) => {
+                                        let newState = Object.assign({}, state);
+                                        newState.action = 'errored';
+                                        newState.alert = {
+                                            title: `Non-Standard Error`,
+                                            text: `Something unexpected went wrong (reload page): ${e}`,
+                                            type: 'error'
+                                        };
+                                        newState.alertState = 'expanded';
+                                        return newState;
+                                    });
+                                });
+                            }).bind(this)
+                        }
+                    )
+                ]).concat([alert])
             );
+        }
+
+        componentWillUnmount() {
+            if (this.timeout) {
+                clearTimeout(this.timeout);
+                this.timeout = null;
+            }
         }
 
         getAuthenticationMethodIds(skipLoadingCheck) {
             if (!skipLoadingCheck && this.state.action === 'loading') { return; }
 
-            this.setState((state) => {
-                let newState = Object.assign({}, state);
-                newState.action = 'loading';
-                newState.alertState = 'closed';
-                newState.authenticationMethodIds = null;
-                newState.initialAuthenticationMethodId = null;
-                return newState;
-            });
+            if (!skipLoadingCheck) {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.action = 'loading';
+                    newState.alertState = 'closed';
+                    newState.authenticationMethodIds = null;
+                    newState.initialAuthenticationMethodId = null;
+                    return newState;
+                });
+            }
 
             api_fetch(
                 `/api/users/${this.props.userId}/authentication_methods`,
@@ -1757,6 +1887,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     newState.action = 'loaded';
                     newState.authenticationMethodIds = json.authentication_methods;
                     newState.initialAuthenticationMethodId = json.authentication_methods[0];
+                    newState.canAddAuthenticationMethod = json.can_add_more;
                     return newState;
                 });
 
@@ -1911,6 +2042,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                         React.createElement(
                             Button,
                             {
+                                key: 'load-older',
                                 text: 'Load Older',
                                 style: 'primary',
                                 type: 'button',
@@ -1924,71 +2056,73 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
         }
 
         mapHistory(hist, key) {
-            return React.createElement(
-                'ul',
-                {key: key, className: 'user-settings-history-ul'},
-                hist.map((itm, idx) => {
-                    return React.createElement(
-                        'li',
-                        {
-                            key: `item-${idx}`,
-                            className: 'user-settings-history-item'
-                        },
-                        [
-                            React.createElement(
-                                'strong',
-                                {key: 'setting-name'},
-                                itm.name
-                            ),
-                            React.createElement(
-                                React.Fragment,
-                                {key: 'txt-1'},
-                                ' was set to '
-                            ),
-                            React.createElement(
-                                'strong',
-                                {key: 'new-value'},
-                                itm.newValue
-                            ),
-                            React.createElement(
-                                React.Fragment,
-                                {key: 'txt-2'},
-                                ` from ${itm.oldValue}. `
-                            ),
-                            React.createElement(
-                                'span',
-                                {className: 'user-setting-time-user'},
-                                [
-                                    React.createElement(
-                                        React.Fragment,
-                                        {key: 'pre'},
-                                        '('
-                                    ),
-                                    React.createElement(
-                                        TextDateTime,
-                                        {
-                                            key: 'time',
-                                            time: itm.occurredAt
-                                        }
-                                    )
-                                ].concat(itm.username ? [
-                                    React.createElement(
-                                        React.Fragment,
-                                        {key: 'user'},
-                                        ` by /u/${itm.username}`
-                                    )
-                                ] : []).concat([
-                                    React.createElement(
-                                        React.Fragment,
-                                        {key: 'post'},
-                                        ')'
-                                    )
-                                ])
-                            )
-                        ]
-                    )
-                })
-            );
+            return [
+                React.createElement(
+                    'ul',
+                    {key: key, className: 'user-settings-history-ul'},
+                    hist.map((itm, idx) => {
+                        return React.createElement(
+                            'li',
+                            {
+                                key: `item-${idx}`,
+                                className: 'user-settings-history-item'
+                            },
+                            [
+                                React.createElement(
+                                    'strong',
+                                    {key: 'setting-name'},
+                                    itm.name
+                                ),
+                                React.createElement(
+                                    React.Fragment,
+                                    {key: 'txt-1'},
+                                    ' was set to '
+                                ),
+                                React.createElement(
+                                    'strong',
+                                    {key: 'new-value'},
+                                    itm.newValue.toString()
+                                ),
+                                React.createElement(
+                                    React.Fragment,
+                                    {key: 'txt-2'},
+                                    ` from ${itm.oldValue}. `
+                                ),
+                                React.createElement(
+                                    'span',
+                                    {className: 'user-setting-time-user', key: 'time'},
+                                    [
+                                        React.createElement(
+                                            React.Fragment,
+                                            {key: 'pre'},
+                                            '('
+                                        ),
+                                        React.createElement(
+                                            TextDateTime,
+                                            {
+                                                key: 'time',
+                                                time: itm.occurredAt
+                                            }
+                                        )
+                                    ].concat(itm.username ? [
+                                        React.createElement(
+                                            React.Fragment,
+                                            {key: 'user'},
+                                            ` by /u/${itm.username}`
+                                        )
+                                    ] : []).concat([
+                                        React.createElement(
+                                            React.Fragment,
+                                            {key: 'post'},
+                                            ')'
+                                        )
+                                    ])
+                                )
+                            ]
+                        )
+                    })
+                )
+            ];
         }
     }
 
@@ -2036,7 +2170,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                 history: [],
                 newHistory: [],
                 historyCounter: 0,
-                nextId: null,
+                beforeId: null,
                 loading: true,
                 haveMore: true,
             };
@@ -2069,6 +2203,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     React.createElement(
                         SmartHeightEased,
                         {
+                            key: 'alert',
                             initialState: 'closed',
                             desiredState: this.state.alertState
                         },
@@ -2144,11 +2279,16 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
 
         rawLoadMore() {
             const ogBeforeId = this.state.beforeId;
+            let apiParams = [`limit=${this.pageSize}`];
+            if (this.state.beforeId) {
+                apiParams.push(`before_id=${this.state.beforeId}`);
+            }
+            let queryParams = apiParams.join('&')
             api_fetch(
-                `/api/users/${this.props.userId}/settings/history?limit=${this.pageSize}&before_id=${this.state.beforeId}`,
+                `/api/users/${this.props.userId}/settings/history?${queryParams}`,
                 AuthHelper.auth({
-                    headers={
-                        'Cache-Control': 'no-cache'
+                    headers: {
+                        'Cache-Control': 'no-store'
                     }
                 })
             ).then((resp) => {
@@ -2173,14 +2313,14 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
                     newState.beforeId = json.before_id;
+                    newState.haveMore = !!json.before_id;
                     return newState;
                 });
-                return loadFromIds(json.history);
+                return this.loadFromIds(json.history);
             }).then((history) => {
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
                     newState.loading = false;
-                    newState.haveMore = history.length === this.pageSize;
                     newState.history = newState.history.concat(newState.newHistory);
                     newState.newHistory = history.map((itm) => {
                         return {
@@ -2195,6 +2335,13 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     return newState;
                 });
             }).catch((err) => {
+                if (typeof(err) !== 'object' || typeof(err.title) !== 'string') {
+                    err = {
+                        title: 'Unknown Error',
+                        type: 'error',
+                        text: `Unknown error fetching settings history: ${err}`
+                    }
+                }
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
                     newState.alertState = 'expanded';
@@ -2211,7 +2358,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                 let loaded = Array(ids.length);
                 let rejected = false;
 
-                ids.forEach(((i) => {
+                ids.forEach(((i, idx) => {
                     api_fetch(
                         `/api/users/${this.props.userId}/settings/history/${i}`,
                         AuthHelper.auth()
@@ -2229,8 +2376,8 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
 
                         return resp.json();
                     }).then((json) => {
-                        loaded[i] = json;
-                        if (!loading.includes(undefined)) {
+                        loaded[idx] = json;
+                        if (!loaded.includes(undefined)) {
                             resolve(loaded);
                         }
                     });
@@ -2334,14 +2481,14 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
         }
 
         render() {
-            React.createElement(
+            return React.createElement(
                 'div',
                 {className: 'user-settings'},
                 [
                     React.createElement(
                         'div',
                         {key: 'title', className: 'user-settings-title'},
-                        `${this.props.username} (${this.props.id})`
+                        `User Settings for ${this.props.username} (id: ${this.props.id})`
                     ),
                     React.createElement(
                         'div',
@@ -2559,6 +2706,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                             React.createElement(
                                 SmartHeightEased,
                                 {
+                                    key: 'ratelimit',
                                     initialState: this.props.userSpecificRatelimit ? 'expanded' : 'closed',
                                     desiredState: this.state.ratelimitUserSettingShown ? 'expanded' : 'closed'
                                 },
@@ -2623,8 +2771,8 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                                                 text: this.props.ratelimitMaxTokens,
                                                 min: 0,
                                                 step: 1,
-                                                disabled: this.props.disabled || !this.state.canModifyRatelimit,
-                                                textQuery: ((query) => this.props.ratelimitMaxTokensQuery = query).bind(this),
+                                                disabled: this.props.disabled || !this.props.canModifyRatelimit,
+                                                textQuery: ((query) => this.ratelimitMaxTokensQuery = query).bind(this),
                                                 textChanged: this.ratelimitChanged.bind(this)
                                             }
                                         }
@@ -2653,8 +2801,8 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                                                 text: this.props.ratelimitRefillTimeMS,
                                                 min: 1,
                                                 step: 1,
-                                                disabled: this.props.disabled || !this.state.canModifyRatelimit,
-                                                textQuery: ((query) => this.props.ratelimitRefillTimeMSQuery = query).bind(this),
+                                                disabled: this.props.disabled || !this.props.canModifyRatelimit,
+                                                textQuery: ((query) => this.ratelimitRefillTimeMSQuery = query).bind(this),
                                                 textChanged: this.ratelimitChanged.bind(this)
                                             }
                                         }
@@ -2679,8 +2827,8 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                                                 text: this.props.ratelimitRefillAmount,
                                                 min: 1,
                                                 step: 1,
-                                                disabled: this.props.disabled || !this.state.canModifyRatelimit,
-                                                textQuery: ((query) => this.props.ratelimitRefillAmountQuery = query).bind(this),
+                                                disabled: this.props.disabled || !this.props.canModifyRatelimit,
+                                                textQuery: ((query) => this.ratelimitRefillAmountQuery = query).bind(this),
                                                 textChanged: this.ratelimitChanged.bind(this)
                                             }
                                         }
@@ -2724,6 +2872,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                                     React.createElement(
                                         SmartHeightEased,
                                         {
+                                            key: 'v-punishing-warning',
                                             initialState: this.state.initialRatelimitPunishingWarning ? 'expanded' : 'closed',
                                             desiredState: this.state.ratelimitShowVeryPunishingWarning ? 'expanded' : 'closed'
                                         },
@@ -2779,10 +2928,10 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
             let okay = true;
             let ratelimitShowVeryPunishingWarning = false;
 
-            let globalRatelimitApplies = this.props.globalRatelimitAppliesQuery();
+            let globalRatelimitApplies = this.globalRatelimitAppliesQuery();
             changed = changed || (globalRatelimitApplies !== this.props.globalRatelimitApplies);
 
-            let userSpecificRatelimit = this.props.userSpecificRatelimitQuery();
+            let userSpecificRatelimit = this.userSpecificRatelimitQuery();
             changed = changed || (userSpecificRatelimit !== this.props.userSpecificRatelimit);
 
             if (userSpecificRatelimit) {
@@ -2855,7 +3004,8 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
 
             this.state = {
                 loading: true,
-                errored = false,
+                settingsCounter: 0,
+                errored: false,
                 alert: {
                     title: 'Title',
                     type: 'info',
@@ -2877,11 +3027,228 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                 ratelimitStrict: false
             };
 
+            this.refreshHistory = null;
             this.rawRefresh();
+        }
+
+        render() {
+            let settingsElement = (this.state.loading ? React.createElement(CenteredSpinner, {key: 'spinner'}) : React.createElement(
+                UserSettings,
+                {
+                    key: `settings-${this.state.settingsCounter}`,
+                    disabled: this.state.disabled,
+                    id: this.props.userId,
+                    username: this.state.username,
+                    canModifyNonReqResponseOptOut: this.state.canModifyNonReqResponseOptOut,
+                    nonReqResponseOptOut: this.state.nonReqResponseOptOut,
+                    nonReqResponseOptOutChanged: (() => {
+                        if (this.state.disabled) { return; }
+                        let newValue = !this.state.nonReqResponseOptOut;
+                        this.setState((state) => {
+                            let newState = Object.assign({}, state);
+                            newState.disabled = true;
+                            newState.alertState = 'closed';
+                            return newState;
+                        });
+
+                        api_fetch(
+                            `/api/users/${this.props.userId}/settings/non-req-response-opt-out`,
+                            AuthHelper.auth({
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    new_value: newValue
+                                })
+                            })
+                        ).then((resp) => {
+                            if (this.refreshHistory) { this.refreshHistory(); }
+                            if (!resp.ok) {
+                                console.log('Request to change non req response opt out failed - check network tab');
+                                this.setState((state) => {
+                                    let newState = Object.assign({}, state);
+                                    newState.settingsCounter += 1;
+                                    newState.alertState = 'expanded';
+                                    newState.alert = {
+                                        title: `${resp.status}: ${resp.statusText || 'Unknown'}`,
+                                        type: 'error',
+                                        text: 'There was an issue changing the non-req response opt out setting. Try again or contact the site administrator.'
+                                    };
+                                    newState.disabled = false;
+                                    return newState;
+                                });
+                            } else {
+                                this.setState((state) => {
+                                    let newState = Object.assign({}, state);
+                                    newState.nonReqResponseOptOut = newValue;
+                                    newState.disabled = false;
+                                    return newState;
+                                });
+                            }
+                        });
+                    }).bind(this),
+                    canModifyBorrowerReqPMOptOut: this.state.canModifyBorrowerReqPMOptOut,
+                    borrowerReqPMOptOut: this.state.borrowerReqPMOptOut,
+                    borrowerReqPMOptOutChanged: (() => {
+                        if (this.state.disabled) { return; }
+                        let newValue = !this.state.borrowerReqPMOptOut;
+                        this.setState((state) => {
+                            let newState = Object.assign({}, state);
+                            newState.disabled = true;
+                            newState.alertState = 'closed';
+                            return newState;
+                        });
+
+                        api_fetch(
+                            `/api/users/${this.props.userId}/settings/borrower-req-pm-opt-out`,
+                            AuthHelper.auth({
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    new_value: newValue
+                                })
+                            })
+                        ).then((resp) => {
+                            if (this.refreshHistory) { this.refreshHistory(); }
+                            if (!resp.ok) {
+                                console.log('Request to change borrower req pm opt out failed - check network tab');
+                                this.setState((state) => {
+                                    let newState = Object.assign({}, state);
+                                    newState.settingsCounter += 1;
+                                    newState.alertState = 'expanded';
+                                    newState.alert = {
+                                        title: `${resp.status}: ${resp.statusText || 'Unknown'}`,
+                                        type: 'error',
+                                        text: 'There was an issue changing the borrower req pm opt out setting. Try again or contact the site administrator.'
+                                    };
+                                    newState.disabled = false;
+                                    return newState;
+                                });
+                            } else {
+                                this.setState((state) => {
+                                    let newState = Object.assign({}, state);
+                                    newState.borrowerReqPMOptOut = newValue;
+                                    newState.disabled = false;
+                                    return newState;
+                                });
+                            }
+                        });
+                    }).bind(this),
+                    canModifyRatelimit: this.state.canModifyRatelimit,
+                    globalRatelimitApplies: this.state.globalRatelimitApplies,
+                    userSpecificRatelimit: this.state.userSpecificRatelimit,
+                    ratelimitMaxTokens: this.state.ratelimitMaxTokens,
+                    ratelimitRefillAmount: this.state.ratelimitRefillAmount,
+                    ratelimitRefillTimeMS: this.state.ratelimitRefillTimeMS,
+                    ratelimitStrict: this.state.ratelimitStrict,
+                    ratelimitChanged: ((global_applies, user_specific, max_tokens, refill_amount, refill_time_ms, strict) => {
+                        if (this.state.disabled) { return; }
+                        if (!user_specific) {
+                            max_tokens = null;
+                            refill_amount = null;
+                            refill_time_ms = null;
+                            strict = null;
+                        }
+                        this.setState((state) => {
+                            let newState = Object.assign({}, state);
+                            newState.disabled = true;
+                            newState.alertState = 'closed';
+                            return newState;
+                        });
+
+                        api_fetch(
+                            `/api/users/${this.props.userId}/settings/ratelimit`,
+                            AuthHelper.auth({
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    new_value: {
+                                        global_applies: global_applies,
+                                        user_specific: user_specific,
+                                        max_tokens: max_tokens,
+                                        refill_amount: refill_amount,
+                                        refill_time_ms: refill_time_ms,
+                                        strict: strict
+                                    }
+                                })
+                            })
+                        ).then((resp) => {
+                            if (this.refreshHistory) { this.refreshHistory(); }
+                            if (!resp.ok) {
+                                console.log('Request to change ratelimit failed - check network tab');
+                                this.setState((state) => {
+                                    let newState = Object.assign({}, state);
+                                    newState.settingsCounter += 1;
+                                    newState.alertState = 'expanded';
+                                    newState.alert = {
+                                        title: `${resp.status}: ${resp.statusText || 'Unknown'}`,
+                                        type: 'error',
+                                        text: 'There was an issue changing the ratelimit settings. Try again or contact the site administrator.'
+                                    };
+                                    newState.disabled = false;
+                                    return newState;
+                                });
+                            } else {
+                                this.setState((state) => {
+                                    let newState = Object.assign({}, state);
+                                    newState.globalRatelimitApplies = global_applies;
+                                    newState.userSpecificRatelimit = user_specific;
+                                    newState.alertState = 'closed';
+                                    if (user_specific) {
+                                        newState.ratelimitMaxTokens = max_tokens;
+                                        newState.ratelimitRefillAmount = refill_amount;
+                                        newState.ratelimitRefillTimeMS = refill_time_ms;
+                                        newState.ratelimitStrict = strict;
+                                    }
+                                    newState.disabled = false;
+                                    return newState;
+                                });
+                            }
+                        });
+                    }).bind(this)
+                },
+                React.createElement(
+                    UserSettingsHistoryAjax,
+                    {
+                        userId: this.props.userId,
+                        refresh: ((rfrsh) => { this.refreshHistory = rfrsh; }).bind(this)
+                    }
+                )
+            ));
+
+            return React.createElement(
+                React.Fragment,
+                null,
+                [
+                    React.createElement(
+                        SmartHeightEased,
+                        {
+                            key: 'alert',
+                            initialState: 'closed',
+                            desiredState: this.state.alertState
+                        },
+                        React.createElement(
+                            Alert,
+                            {
+                                title: this.state.alert.title,
+                                type: this.state.alert.type,
+                                text: this.state.alert.text
+                            }
+                        )
+                    ),
+                    settingsElement
+                ]
+            );
         }
 
         refresh() {
             if (this.state.loading) { return; }
+            if (this.refreshHistory) { this.refreshHistory(); }
 
             this.setState((state) => {
                 let newState = Object.assign({}, state);
@@ -2905,6 +3272,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
                     newState.loading = false;
+                    newState.disabled = false;
                     newState.alertState = 'closed';
                     return newState;
                 });
@@ -3006,9 +3374,9 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
      */
     class UserAjax extends React.Component {
         render() {
-            React.createElement(
+            return React.createElement(
                 'div',
-                'user',
+                {key: 'user'},
                 [
                     React.createElement(
                         AuthenticationMethodSelectFormWithAjaxAndView,
@@ -3025,8 +3393,12 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                         }
                     )
                 ]
-            )
+            );
         }
+    };
+
+    UserAjax.propTypes = {
+        userId: PropTypes.number.isRequired
     };
 
     /**
@@ -3150,6 +3522,10 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                         `Suggestion request failed with status code ${resp.status} - check network tab`
                     );
                     return;
+                }
+
+                if (resp.status === 204) {
+                    return Promise.resolve({suggestions: []});
                 }
 
                 return resp.json();
