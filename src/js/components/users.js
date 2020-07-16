@@ -3434,16 +3434,41 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
             this.userIdWasNull = true;
             this.userId = null;
 
-            this.props.userIdQuery((() => this.userId).bind(this));
+            if (this.props.userIdQuery) {
+                this.props.userIdQuery((() => this.userId).bind(this));
+            }
         }
 
         render() {
             return React.createElement(
-                AutoCompleter,
-                {
-                    valueChanged: this.usernameChanged.bind(this),
-                    suggestionsRequest: this.fetchSuggestions.bind(this)
-                }
+                React.Fragment,
+                null,
+                [
+                    React.createElement(
+                        AutoCompleter,
+                        {
+                            key: 'user-input',
+                            valueChanged: this.usernameChanged.bind(this),
+                            suggestionsRequest: this.fetchSuggestions.bind(this)
+                        }
+                    ),
+                    React.createElement(
+                        SmartHeightEased,
+                        {
+                            key: 'alert',
+                            initialState: 'closed',
+                            desiredState: this.state.alertState
+                        },
+                        React.createElement(
+                            Alert,
+                            {
+                                type: this.state.alert.type,
+                                title: this.state.alert.title,
+                                text: this.state.alert.text
+                            }
+                        )
+                    )
+                ]
             );
         }
 
@@ -3459,11 +3484,30 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                 });
             }
 
+            if (username === '' || username === null || username === undefined) {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.alert = {
+                        title: 'User not found',
+                        type: 'info',
+                        text: 'Enter a username above to view settings'
+                    };
+                    newState.alertState = 'expanded';
+                    return newState;
+                });
+
+                if (!this.userIdWasNull) {
+                    this.userIdWasNull = true;
+                    if (this.props.userIdChanged) { this.props.userIdChanged(this.userId); }
+                }
+                return;
+            }
+
             api_fetch(
                 `/api/users/lookup?q=${encodeURIComponent(username)}`,
                 AuthHelper.auth()
             ).then((resp) => {
-                if (this.username !== this.usernameForUserId) { return; }
+                if (username !== this.usernameForUserId) { return; }
 
                 if (!resp.ok) {
                     if (resp.status === 404) {
@@ -3482,7 +3526,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
 
                 return resp.json();
             }).then((json) => {
-                if (this.username !== this.usernameForUserId) { return; }
+                if (username !== this.usernameForUserId) { return; }
 
                 this.userId = json.id;
                 this.userIdWasNull = false;
@@ -3496,7 +3540,14 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     });
                 }
             }).catch((err) => {
-                if (this.username !== this.usernameForUserId) { return; }
+                if (username !== this.usernameForUserId) { return; }
+                if (typeof(err) !== 'object' || typeof(err.title) !== 'string') {
+                    err = {
+                        title: 'Unknown Error',
+                        type: 'error',
+                        text: err.toString()
+                    }
+                }
 
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
@@ -3530,7 +3581,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
 
                 return resp.json();
             }).then((json) => {
-                callback(json.suggestions.map((sugg) => sugg.username));
+                callback(json.suggestions);
             }).catch(() => {
                 console.log(
                     'Network error fetching suggestions; check internet connection'
@@ -3592,7 +3643,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     React.createElement(
                         SmartHeightEased,
                         {
-                            key: 'user',
+                            key: `user-${this.state.userId}`,
                             initialState: 'closed',
                             desiredState: this.state.userShown ? 'expanded' : 'closed'
                         },

@@ -35,8 +35,11 @@ const TextInput = (function() {
             return React.createElement(
                 'input',
                 {
-                    type: this.props.type || 'text', ref: this.inputRef,
-                    min: this.props.min, max: this.props.max, step: this.props.step,
+                    type: this.props.type || 'text',
+                    ref: this.inputRef,
+                    min: this.props.min,
+                    max: this.props.max,
+                    step: this.props.step,
                     className: 'text-input',
                     defaultValue: this.props.text,
                     disabled: this.props.disabled

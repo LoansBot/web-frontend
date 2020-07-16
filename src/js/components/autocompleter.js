@@ -29,9 +29,17 @@ const AutoCompleter = (() => {
             const haystack = this.props.predictiveTerm.toLowerCase();
             const needle = this.props.originalTerm.toLowerCase();
             while (currentIndex < haystack.length) {
+                if (needle.length === 0) {
+                    children.push(React.createElement(
+                        React.Fragment,
+                        {key: `substring-0`},
+                        this.props.predictiveTerm
+                    ));
+                    break;
+                }
                 let foundIndex = haystack.indexOf(needle, currentIndex);
                 if (foundIndex < 0) {
-                    children.append(React.createElement(
+                    children.push(React.createElement(
                         React.Fragment,
                         {key: `substring-${children.length}`},
                         this.props.predictiveTerm.substring(currentIndex)
@@ -40,14 +48,14 @@ const AutoCompleter = (() => {
                 }
 
                 if (foundIndex > currentIndex) {
-                    children.append(React.createElement(
+                    children.push(React.createElement(
                         React.Fragment,
                         {key: `substring-${children.length}`},
                         this.props.predictiveTerm.substring(currentIndex, foundIndex)
                     ));
                 }
 
-                children.append(React.createElement(
+                children.push(React.createElement(
                     'strong',
                     {key: `substring-${children.length}`},
                     this.props.predictiveTerm.substring(foundIndex, foundIndex + needle.length)
@@ -116,7 +124,7 @@ const AutoCompleter = (() => {
                 'div',
                 {className: 'autocompleter-suggestions'},
                 this.props.predictiveTerms.map((trm, idx) => {
-                    React.createElement(
+                    return React.createElement(
                         AutoCompleteSuggestion,
                         {
                             key: `suggestion-${idx}`,
@@ -210,7 +218,7 @@ const AutoCompleter = (() => {
         }
     }
 
-    AutoCompleteSuggestionList = {
+    AutoCompleteSuggestionList.propTypes = {
         originalTerm: PropTypes.string.isRequired,
         predictiveTerms: PropTypes.arrayOf(PropTypes.string).isRequired,
         onClick: PropTypes.func,
@@ -286,22 +294,27 @@ const AutoCompleter = (() => {
                 },
                 [
                     React.createElement(
-                        TextInput,
+                        FormElement,
                         {
                             key: 'input',
-                            type: 'text',
-                            text: '',
-                            textQuery: this.setTextQuery,
-                            textChanged: this.valueChanged,
-                            textSet: this.setTextSet,
-                            focus: this.setFocusInput,
-                            focusChanged: this.inputFocusChanged,
-                            focusGet: this.setFocusInputGet
-                        }
+                            labelText: 'Username',
+                            component: TextInput,
+                            componentArgs: {
+                                key: 'inputinner',
+                                type: 'text',
+                                textQuery: this.setTextQuery,
+                                textChanged: this.valueChanged,
+                                textSet: this.setTextSet,
+                                focus: this.setFocusInput,
+                                focusChanged: this.inputFocusChanged,
+                                focusGet: this.setFocusInputGet
+                            }
+                        },
                     ),
                     React.createElement(
                         SmartHeightEased,
                         {
+                            key: 'suggestions',
                             initialState: 'closed',
                             desiredState: this.state.suggestionsState
                         },
@@ -359,9 +372,9 @@ const AutoCompleter = (() => {
                     let newText = this.textQuery() + evt.key;
                     this.textSet(newText);
                     this.valueChanged(newText);
+                    evt.stopPropagation();
+                    evt.preventDefault();
                 }
-                evt.stopPropagation();
-                evt.preventDefault();
             }
         }
 
@@ -450,6 +463,8 @@ const AutoCompleter = (() => {
         }
 
         valueChanged(newVal, suppressCallback) {
+            suppressCallback = !!suppressCallback;
+
             if (!suppressCallback && this.props.valueChanged) {
                 this.props.valueChanged(newVal);
             }
@@ -460,8 +475,8 @@ const AutoCompleter = (() => {
                 return newState;
             });
 
-            const counter = this.suggestionCounter;
             this.suggestionCounter += 1;
+            const counter = this.suggestionCounter;
 
             if (!this.props.suggestionsRequest) { return; }
 

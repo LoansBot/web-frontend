@@ -119,8 +119,12 @@ const NavbarLoader = (function() {
             if(perms) {
                 for(var i = 0, len = perms.length; i < len; i++) {
                     let itm = this.permToNavItem(perms[i]);
-                    if(itm) {
-                        show.push(itm);
+                    if (itm) {
+                        let arrToModify = show;
+                        if (itm.length === 2) {
+                            arrToModify = show.find((val) => (Array.isArray(val) && val[0] === itm[0]))[2];
+                        }
+                        arrToModify.push(itm[itm.length - 1]);
                     }
                 }
             }
@@ -143,9 +147,11 @@ const NavbarLoader = (function() {
 
         permToNavItem(name) {
             if(name === 'logs') {
-                return 'logs';
+                return ['logs'];
             }else if (name === 'responses') {
-                return 'responses';
+                return ['responses'];
+            }else if (name === 'view-others-settings') {
+                return ['Account', 'others-settings'];
             }
 
             return null;
@@ -224,6 +230,13 @@ const NavbarLoader = (function() {
                     ariaLabel: 'Navigate to the manage my account page',
                     current: current,
                     url: '/my-account.html'
+                }
+            }else if (name === 'others-settings') {
+                return {
+                    name: 'Administrate',
+                    ariaLabel: 'Navigate to manage others accoutns page',
+                    current: current,
+                    url: '/administrate-users.html'
                 }
             }
         }
