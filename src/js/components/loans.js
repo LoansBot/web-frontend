@@ -1707,7 +1707,7 @@ const [
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
                     newState.refreshContentLoaded = true;
-                    newState.errorMessage = msg;
+                    newState.errorMessage = msg.toString();
                     newState.refreshing = !newState.refreshTimeoutSeen;
                     return newState;
                 });

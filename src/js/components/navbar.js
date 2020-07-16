@@ -14,7 +14,8 @@ const NavBar = (function() {
    * @param {bool} focusable True if this item is focusable, false otherwise
    * @param {string} ariaLabel The aria label for this item
    * @param {function} clicked This function is invoked when this item is
-   *  clicked.
+   *  clicked. Passed "true" for main mouse button clicks and "false" for
+   *  secondary mouse button clicks
    * @param {bool} shouldRipFocus True if this item should steal focus after
    *  it is rendered, false not to. Always treated as false if not focusable
    * @param {function} refocus A function which we call with a function which
@@ -49,7 +50,9 @@ const NavBar = (function() {
     }
 
     componentDidMount() {
-      this.element.current.addEventListener('click', ((_) => this.handleClick()).bind(this));
+      for (let evt of ['click', 'mouseup', 'mousedown']) {
+        this.element.current.addEventListener(evt, ((e) => this.handleClick(e, evt)).bind(this));
+      }
       if (this.props.refocus) {
         this.props.refocus((() => {
           this.element.current.focus()
@@ -68,9 +71,16 @@ const NavBar = (function() {
       }
     }
 
-    handleClick() {
+    handleClick(e, typ) {
+      if (typ === 'mousedown') {
+        if (e.button === 1) { e.preventDefault(); }
+        return;
+      }
+      if (typ === 'mouseup' && e.button !== 1) { return; }
+
+      e.preventDefault();
       if (this.props.clicked) {
-        this.props.clicked();
+        this.props.clicked(typ === 'click');
       }
     }
   };
@@ -110,6 +120,9 @@ const NavBar = (function() {
    *   - apply: A function which is called when the user tries to apply the
    *     action associated with this item. This should navigate if this item
    *     is a url. Returns true if navigation occurred and false otherwise.
+   *     Passed an boolean which is true for primary clicks and false for
+   *     auxiliary clicks (middle click). Middle click should open in a new
+   *     tab.
    * @param {function} exit A function which is called when the user tries to
    *     close this row. Returns true if this was a nested row and hence it
    *     could be closed and false if nothing happened. A null function is
@@ -493,8 +506,12 @@ const NavBar = (function() {
                   }
                 }
               } : null),
-              apply: (item.url ? (_) => {
-                window.location.href = item.url;
+              apply: (item.url ? (primary) => {
+                if (primary) {
+                  window.location.href = item.url;
+                } else {
+                  window.open(item.url, '_blank');
+                }
               } : null)
             };
           }),
@@ -521,7 +538,13 @@ const NavBar = (function() {
                 opensMenu: false,
                 expanded: false,
                 enter: null,
-                apply: (_) => {window.location.href = item.url; }
+                apply: (primary) => {
+                  if (primary) {
+                    window.location.href = item.url;
+                  } else {
+                    window.open(item.url, '_blank');
+                  }
+                }
               };
             }),
             key: 'secondary',
