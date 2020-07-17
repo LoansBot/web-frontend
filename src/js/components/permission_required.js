@@ -13,14 +13,16 @@ const [PermissionRequired] = (function() {
             this.state = {
                 showChildren: false
             };
-
-            this.checkPermissions();
         }
 
         render() {
             if (!this.state.showChildren) { return React.createElement(React.Fragment); }
 
             return this.props.children;
+        }
+
+        componentDidMount() {
+            this.checkPermissions();
         }
 
         checkPermissions() {
@@ -46,8 +48,9 @@ const [PermissionRequired] = (function() {
 
                 return resp.json();
             }).then((perms) => {
+                let permsSet = new Set(perms);
                 for (let perm of this.props.permissions) {
-                    if (!perms.include(perm)) {
+                    if (!permsSet.has(perm)) {
                         return Promise.reject();
                     }
                 }
@@ -57,7 +60,7 @@ const [PermissionRequired] = (function() {
                     newState.showChildren = true;
                     return newState;
                 });
-            }).catch(() => {
+            }).catch((e) => {
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
                     newState.showChildren = false;
