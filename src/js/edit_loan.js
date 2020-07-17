@@ -19,7 +19,7 @@
                 React.createElement(LoanDetailsAjax, {key: 'details', loanId: loanId}),
                 React.createElement(
                     PermissionRequired,
-                    {key: 'edit'},
+                    {key: 'edit', permissions: ['edit_loans']},
                     React.createElement(EditLoanFormWithLogic, {loanId: loanId})
                 )
             ])
