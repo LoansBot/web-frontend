@@ -2116,6 +2116,18 @@ const [
 
             this.presetSet('all');
             this.applyPreset('all');
+
+            let queryParams = new URLSearchParams(window.location.search);
+            let username = queryParams.get('username');
+            if (username !== null && username !== undefined) {
+                this.allFilters.user.borrowerSet(username);
+                this.allFilters.user.lenderSet(username);
+                this.presetSet('custom');
+
+                if (this.props.filterChanged) {
+                    this.props.filterChanged();
+                }
+            }
         }
 
         applyPreset(preset) {

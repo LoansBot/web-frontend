@@ -17,7 +17,11 @@
             React.createElement(NavbarLoader, {key: 'nav', currentPage: 'loans'}),
             React.createElement('div', {key: 'main', className: 'main', style: { marginBottom: '25vh' }}, [
                 React.createElement(LoanDetailsAjax, {key: 'details', loanId: loanId}),
-                React.createElement(EditLoanFormWithLogic, {key: 'edit', loanId: loanId})
+                React.createElement(
+                    PermissionRequired,
+                    {key: 'edit'},
+                    React.createElement(EditLoanFormWithLogic, {loanId: loanId})
+                )
             ])
         ],
         document.getElementById('content')
