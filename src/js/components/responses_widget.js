@@ -730,8 +730,13 @@ const ResponsesWidget = (function() {
 
         loadInfo(bustCache) {
             let propName = this.props.name;
+            let headers = new Headers();
+            if (bustCache) {
+                headers.set('Cache-Control', 'no-cache');
+                headers.set('Pragma', 'no-cache');
+            }
             api_fetch(`/api/responses/${propName}`, AuthHelper.auth({
-                cache: bustCache ? 'no-cache' : 'default'
+                headers: headers
             })).then((resp) => {
                 if(resp.status === 200) {
                     return resp.json();
@@ -759,8 +764,14 @@ const ResponsesWidget = (function() {
                 return newState;
             });
 
+            let headers = new Headers();
+            if (bustCache) {
+                headers.set('Cache-Control', 'no-cache');
+                headers.set('Pragma', 'no-cache');
+            }
+
             api_fetch(`/api/responses/${this.props.name}/histories`, AuthHelper.auth({
-                cache: bustCache ? 'no-cache' : 'default'
+                headers: headers
             })).then((resp) => {
                 if(resp.status === 200) {
                     return resp.json();
@@ -1186,8 +1197,14 @@ const ResponsesWidget = (function() {
         }
 
         loadResponses(bustCache) {
+            let headers = new Headers();
+            if (bustCache) {
+                headers.set('Cache-Control', 'no-cache');
+                headers.set('Pragma', 'no-cache');
+            }
+
             return api_fetch('/api/responses', AuthHelper.auth({
-                cache: bustCache ? 'no-cache' : 'default'
+                headers: headers
             })).then((resp) => {
                 if(resp.status === 200) {
                     return resp.json();
