@@ -115,6 +115,10 @@ const NavbarLoader = (function() {
                 'Account',
                 'Open account management secondary navbar',
                 ['my-account', 'logout']
+            ], [
+                'Tools',
+                'Open available tools secondary navbar',
+                []
             ]];
             if(perms) {
                 for(var i = 0, len = perms.length; i < len; i++) {
@@ -128,6 +132,10 @@ const NavbarLoader = (function() {
                     }
                 }
             }
+            show = show.filter((val) => {
+                return !Array.isArray(val) || val[2].length > 0;
+            });
+
             this.setState({
                 loading: false,
                 show: show,
@@ -146,12 +154,14 @@ const NavbarLoader = (function() {
         }
 
         permToNavItem(name) {
-            if(name === 'logs') {
+            if (name === 'logs') {
                 return ['logs'];
-            }else if (name === 'responses') {
+            } else if (name === 'responses') {
                 return ['responses'];
-            }else if (name === 'view-others-settings') {
+            } else if (name === 'view-others-settings') {
                 return ['Account', 'others-settings'];
+            } else if (name === 'recheck') {
+                return ['Tools', 'recheck'];
             }
 
             return null;
@@ -168,75 +178,82 @@ const NavbarLoader = (function() {
             }
 
             let current = this.props.currentPage === name;
-            if(name === 'home') {
+            if (name === 'home') {
                 return {
                     name: 'Home',
                     ariaLabel: 'Navigate to the home page',
                     current: current,
                     url: '/'
                 };
-            }else if(name === 'loans') {
+            } else if (name === 'loans') {
                 return {
                     name: 'Loans',
                     ariaLabel: 'Navigate to the search loans page',
                     current: current,
                     url: '/loans.html'
                 }
-            }else if(name === 'login') {
+            } else if (name === 'login') {
                 return {
                     name: 'Login',
                     ariaLabel: 'Navigate to the login page',
                     current: current,
                     url: '/login.html'
                 };
-            }else if(name === 'signup') {
+            } else if (name === 'signup') {
                 return {
                     name: 'Sign Up',
                     ariaLabel: 'Navigate to the sign-up page',
                     current: current,
                     url: '/signup.html'
                 };
-            }else if(name === 'forgot-password') {
+            } else if (name === 'forgot-password') {
                 return {
                     name: 'Forgot Password',
                     ariaLabel: 'Navigate to the password recovery page',
                     current: current,
                     url: '/signup.html?forgot=true'
                 };
-            }else if(name === 'logout') {
+            } else if (name === 'logout') {
                 return {
                     name: this.state.username ? `Logout (${this.state.username})` : 'Logout',
                     ariaLabel: 'Logout and refresh the page',
                     current: false,
                     url: '/logout.html'
                 };
-            }else if(name === 'logs') {
+            } else if (name === 'logs') {
                 return {
                     name: 'Logs',
                     ariaLabel: 'Navigate to the view logs page',
                     current: current,
                     url: '/logs.html'
                 };
-            }else if(name === 'responses') {
+            } else if (name === 'responses') {
                 return {
                     name: 'Responses',
                     ariaLabel: 'Navigate to the view and edit responses page',
                     current: current,
                     url: '/responses.html'
                 };
-            }else if (name === 'my-account') {
+            } else if (name === 'my-account') {
                 return {
                     name: 'My Account',
                     ariaLabel: 'Navigate to the manage my account page',
                     current: current,
                     url: '/my-account.html'
                 }
-            }else if (name === 'others-settings') {
+            } else if (name === 'others-settings') {
                 return {
                     name: 'Administrate',
-                    ariaLabel: 'Navigate to manage others accoutns page',
+                    ariaLabel: 'Navigate to manage others accounts page',
                     current: current,
                     url: '/administrate-users.html'
+                }
+            } else if (name === 'recheck') {
+                return {
+                    name: 'Recheck',
+                    ariaLabel: 'Navigate to the recheck page',
+                    current: current,
+                    url: '/rechecks.html'
                 }
             }
         }
