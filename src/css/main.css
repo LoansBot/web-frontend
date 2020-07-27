@@ -4,6 +4,10 @@ body {
     margin: 0 0;
 }
 
+p {
+    font-size: 14pt;
+    line-height: 150%;
+}
 .main {
     max-width: 540px;
     margin: 0 auto;
