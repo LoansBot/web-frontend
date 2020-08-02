@@ -4,7 +4,8 @@ const Alert = (function() {
      * A simple error component. Displays a message.
      * @param title The title for the component
      * @param type One of 'success', 'info', 'warning', and 'error'
-     * @param text The text that is displayed
+     * @param text The text that is displayed. The children will be used
+     *   instead if provided.
      */
     class Alert extends React.Component {
         render() {
@@ -20,7 +21,7 @@ const Alert = (function() {
                     React.createElement(
                         'div',
                         {key: 'body', className: 'alert-body'},
-                        this.props.text
+                        this.props.children || this.props.text
                     )
                 ]
             );

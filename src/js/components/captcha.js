@@ -12,13 +12,19 @@ const Captcha = (function() {
         constructor(props) {
             super(props);
             this.setCallbacks = false;
+            this.state = {
+                iden: (
+                    parseInt(Math.random() * 1_000_000_000_000)
+                    + new Date().getTime()
+                ).toString(36)
+            };
         }
 
         render() {
             return React.createElement(
                 'div',
                 {
-                    id: 'captcha',
+                    id: this.state.iden,
                     className: 'h-captcha',
                     'data-sitekey': 'e8002362-19f0-44e5-8b63-3274e078b8f4'
                 }
@@ -40,10 +46,12 @@ const Captcha = (function() {
             }
             this.setCallbacks = true;
 
+            hcaptcha.render(this.state.iden);
+
             if(this.props.tokenGet) {
                 this.props.tokenGet(() => {
                     try {
-                        let response = hcaptcha.getResponse();
+                        let response = hcaptcha.getResponse(this.state.iden);
                         return response ? response : null;
                     }catch(error) {
                         console.log(error);
@@ -55,7 +63,7 @@ const Captcha = (function() {
             if(this.props.tokenClear) {
                 this.props.tokenClear(() => {
                     try {
-                        hcaptcha.reset()
+                        hcaptcha.reset(this.state.iden)
                     }catch(error) {
                         console.log(error);
                     }
