@@ -178,7 +178,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
             let token = AuthHelper.getAuthToken();
             let isSelf = token !== null && token.userId === this.props.userId;
 
-            React.createElement(
+            return React.createElement(
                 React.Fragment,
                 null,
                 [
@@ -222,6 +222,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                     React.createElement(
                         Alert,
                         {
+                            key: 'consent-to-process',
                             type: 'info',
                             title: 'Consent to process',
                             text: (
@@ -248,6 +249,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                     React.createElement(
                         Alert,
                         {
+                            key: 'ability-to-withdraw-consent',
                             type: 'info',
                             title: 'Ability to withdraw consent',
                             text: (
@@ -269,6 +271,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                     React.createElement(
                         Captcha,
                         {
+                            key: 'edit-captcha',
                             tokenGet: ((gtr) => this.tokenGet = gtr).bind(this),
                             tokenClear: ((clr) => this.tokenClear = clr).bind(this)
                         }
@@ -276,6 +279,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                     React.createElement(
                         Button,
                         {
+                            key: 'edit-submit',
                             text: 'Update Demographics',
                             style: 'primary',
                             disabled: this.state.loading,
@@ -283,7 +287,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                         }
                     )
                 ]
-            )
+            );
         }
 
         onSubmit() {
@@ -330,7 +334,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                     method: 'PUT',
                     body: JSON.stringify(bodyParams)
                 })
-            ).then((resp) => {
+            ).then(((resp) => {
                 if (!resp.ok) { return Promise.reject(resp); }
 
                 this.setState((state) => {
@@ -358,7 +362,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                 }
 
                 this.tokenClear();
-            }).catch((e) => {
+            }).bind(this)).catch(((e) => {
                 console.log('Failed to PUT demographics:');
                 console.log(e);
 
@@ -469,7 +473,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                 }
 
                 this.tokenClear();
-            })
+            }).bind(this))
         }
     }
 
@@ -827,7 +831,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                         'Cache-Control': 'no-cache'
                     }
                 })
-            ).then((resp) => {
+            ).then(((resp) => {
                 this.tokenClear();
                 if (!resp.ok) {
                     let title = null;
@@ -876,7 +880,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                 }
 
                 return resp.json();
-            }).then((json) => {
+            }).bind(this)).then(((json) => {
                 if (jsons.hits.length === 0) {
                     this.setState((state) => {
                         let newState = Object.assign({}, state);
@@ -922,7 +926,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                         });
                     });
                 });
-            }).then((enrichedJson) => {
+            }).bind(this)).then(((enrichedJson) => {
                 this.tokenClear();
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
@@ -932,7 +936,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                     newState.matches = enrichedJson.hits;
                     return newState;
                 });
-            }).catch(() => {
+            }).bind(this)).catch((() => {
                 this.tokenClear();
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
@@ -950,7 +954,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                     newState.matches = [];
                     return newState;
                 });
-            });
+            }).bind(this));
         }
     };
 
@@ -1006,9 +1010,9 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                 demographicsState: 'closed',
                 toggleEditButtonState: 'closed',
                 editFormState: 'closed',
-                purgeFirstClickButtonState = 'closed',
-                purgeConfirmCounter = 0,
-                purgeConfirmButtonState = 'closed',
+                purgeFirstClickButtonState: 'closed',
+                purgeConfirmCounter: 0,
+                purgeConfirmButtonState: 'closed',
                 purgeCaptchaAndButtonState: 'closed',
                 username: `(loading user ${this.props.userId})`,
                 demographics: {
@@ -1076,10 +1080,11 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                             React.createElement(
                                 Alert,
                                 {
+                                    key: 'view-captcha-verify-alert',
                                     type: 'info',
                                     title: 'Verify'
                                 },
-                                isSelfInfo ? React.createElement(
+                                this.state.isSelfInfo ? React.createElement(
                                     'p',
                                     null,
                                     'You are about to view your demographics information. ' +
@@ -1448,11 +1453,12 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                     return newState;
                 });
             }
+            onSuccess = onSuccess.bind(this);
 
             api_fetch(
-                `/api/users/${this.props.userId === info.userId ? 'me' : this.props.userId}`,
+                `/api/users/${this.props.userId}${this.props.userId === info.userId ? '/me' : ''}`,
                 AuthHelper.auth()
-            ).then((resp) => {
+            ).then(((resp) => {
                 if (rejected) { return; }
                 if (!resp.ok) {
                     if (resp.status === 404) {
@@ -1467,7 +1473,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                             newState.alertState = 'expanded';
                             return newState;
                         });
-                        this.rejected = true;
+                        rejected = true;
                         return;
                     } else {
                         this.setState((state) => {
@@ -1485,13 +1491,13 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                             newState.alertState = 'expanded';
                             return newState;
                         });
-                        this.rejected = true;
+                        rejected = true;
                         return;
                     }
                 }
 
                 return resp.json();
-            }).then((json) => {
+            }).bind(this)).then(((json) => {
                 if (rejected) { return; }
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
@@ -1500,7 +1506,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                     return newState;
                 });
                 onSuccess(0);
-            }).catch(() => {
+            }).bind(this)).catch((() => {
                 if (rejected) { return; }
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
@@ -1518,7 +1524,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                     return newState;
                 });
                 rejected = true;
-            })
+            }).bind(this))
 
 
             api_fetch(
@@ -1566,7 +1572,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                 }
 
                 return resp.json();
-            }).then((json) => {
+            }).then(((json) => {
                 if (rejected) { return; }
                 let tryingToViewSelf = this.props.userId == info.userId;
 
@@ -1599,7 +1605,8 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                 this.hasPermissionToEdit = json.permissions.includes(editPermission);
                 this.hasPermissionToPurge = json.permissions.includes(purgePermission);
                 onSuccess(1);
-            }).catch(() => {
+            }).bind(this)).catch((e) => {
+                console.log(e);
                 if (rejected) { return; }
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
@@ -1648,7 +1655,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                     'Pragma': 'no-cache',
                     'Cache-Control': 'no-cache'
                 })
-            ).then((resp) => {
+            ).then(((resp) => {
                 this.viewTokenClear();
                 this.purgeTokenClear(); // just in case
                 if (!resp.ok) {
@@ -1722,7 +1729,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                 }
 
                 return resp.json();
-            }).then((json) => {
+            }).bind(this)).then(((json) => {
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
                     newState.loading = false;
@@ -1743,7 +1750,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                     };
                     return newState;
                 })
-            }).catch(() => {
+            }).bind(this)).catch((() => {
                 this.viewTokenClear();
                 this.purgeTokenClear();
                 this.setState((state) => {
@@ -1760,7 +1767,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                     newState.alertState = 'expanded';
                     return newState;
                 });
-            });
+            }).bind(this));
         }
 
         onEdit(demographics) {
@@ -1823,7 +1830,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                         'Pragma': 'no-cache'
                     }
                 })
-            ).then((resp) => {
+            ).then(((resp) => {
                 this.purgeTokenClear();
                 if (!resp.ok) {
                     let title = null;
@@ -1916,7 +1923,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                     newState.alertState = 'expanded';
                     return newState;
                 });
-            }).catch(() => {
+            }).bind(this)).catch((() => {
                 this.purgeTokenClear();
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
@@ -1936,7 +1943,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                     newState.purgeCaptchaAndButtonState = 'closed';
                     return newState;
                 });
-            })
+            }).bind(this))
         }
     };
 

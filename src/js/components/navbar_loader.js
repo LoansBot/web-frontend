@@ -162,6 +162,8 @@ const NavbarLoader = (function() {
                 return ['Account', 'others-settings'];
             } else if (name === 'recheck') {
                 return ['Tools', 'recheck'];
+            } else if (name === 'view-self-demographics') {
+                return ['Account', 'my-demographics'];
             }
 
             return null;
@@ -255,6 +257,13 @@ const NavbarLoader = (function() {
                     current: current,
                     url: '/rechecks.html'
                 }
+            } else if (name === 'my-demographics') {
+                return {
+                    name: 'My Demographics',
+                    ariaLabel: 'Navigate to self demographics',
+                    current: current,
+                    url: `/demographics.html?user_id=${AuthHelper.getAuthToken().userId}`
+                };
             }
         }
 
