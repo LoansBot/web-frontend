@@ -1652,8 +1652,10 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
             api_fetch(
                 `/api/users/${this.props.userId}/demographics?captcha=${encodeURIComponent(token)}`,
                 AuthHelper.auth({
-                    'Pragma': 'no-cache',
-                    'Cache-Control': 'no-cache'
+                    headers: {
+                        'Pragma': 'no-cache',
+                        'Cache-Control': 'no-cache'
+                    }
                 })
             ).then(((resp) => {
                 this.viewTokenClear();
