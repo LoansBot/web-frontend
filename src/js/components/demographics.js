@@ -1727,11 +1727,12 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                         newState.alertState = 'expanded';
                         return newState;
                     });
-                    return;
                 }
 
                 return resp.json();
             }).bind(this)).then(((json) => {
+                if (!json) { return; }
+
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
                     newState.loading = false;
