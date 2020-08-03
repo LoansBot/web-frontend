@@ -47,7 +47,7 @@ const Captcha = (function() {
             }
             this.setCallbacks = true;
 
-            this.widgetId = captcha.render(this.state.iden);
+            this.widgetId = hcaptcha.render(this.state.iden);
 
             if(this.props.tokenGet) {
                 this.props.tokenGet(() => {
