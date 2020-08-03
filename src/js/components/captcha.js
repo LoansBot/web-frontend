@@ -18,6 +18,7 @@ const Captcha = (function() {
                     + new Date().getTime()
                 ).toString(36)
             };
+            this.widgetId = null;
         }
 
         render() {
@@ -46,12 +47,12 @@ const Captcha = (function() {
             }
             this.setCallbacks = true;
 
-            hcaptcha.render(this.state.iden);
+            this.widgetId = captcha.render(this.state.iden);
 
             if(this.props.tokenGet) {
                 this.props.tokenGet(() => {
                     try {
-                        let response = hcaptcha.getResponse(this.state.iden);
+                        let response = hcaptcha.getResponse(this.widgetId);
                         return response ? response : null;
                     }catch(error) {
                         console.log(error);
@@ -63,7 +64,7 @@ const Captcha = (function() {
             if(this.props.tokenClear) {
                 this.props.tokenClear(() => {
                     try {
-                        hcaptcha.reset(this.state.iden)
+                        hcaptcha.reset(this.widgetId)
                     }catch(error) {
                         console.log(error);
                     }
