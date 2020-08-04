@@ -1783,7 +1783,10 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                 newState.alert = {
                     title: 'Success',
                     type: 'success',
-                    text: 'You have successfully edited the demographic information below.'
+                    text: (
+                        'You have successfully edited demographic information. The new information ' +
+                        'is shown below.'
+                    )
                 };
                 newState.alertState = 'expanded';
                 newState.demographicsState = 'expanded';
