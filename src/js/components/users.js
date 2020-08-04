@@ -1,4 +1,4 @@
-const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
+const [UserAjax, UserSelectFormWithAjax, UserSelectFormWithAjaxAndView] = (function() {
     /**
      * Shows a description of a particular permission alongside some controls
      * for that permission.
@@ -3659,5 +3659,5 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
         }
     };
 
-    return [UserAjax, UserSelectFormWithAjaxAndView];
+    return [UserAjax, UserSelectFormWithAjax, UserSelectFormWithAjaxAndView];
 })();

@@ -1,4 +1,4 @@
-const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function() {
+const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsByUserAjaxAndView] = (function() {
     /**
      * Shows the demographics information for the given user, without the option
      * to edit anything.
@@ -1959,12 +1959,53 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
         userId: PropTypes.number.isRequired
     };
 
-    // TODO: make a page (/demographics.html?user_id=<number>) which uses the show ajax
-    //   and view component
+    /**
+     * Shows a convienent way to select a user in the database, and once a user is
+     * selected renders a form to view, edit, or purge their demographic information.
+     */
+    class DemographicsByUserAjaxAndView extends React.Component {
+        constructor(props) {
+            super(props);
+
+            this.state = {
+                userIdShown = null
+            }
+        }
+
+        render() {
+            return React.createElement(
+                React.Fragment,
+                null,
+                [
+                    React.createElement(
+                        UserSelectFormWithAjax,
+                        {
+                            key: 'user-select',
+                            userIdChanged: ((userId) => {
+                                this.setState((state) => {
+                                    let newState = Object.assign({}, state);
+                                    newState.userIdShown = userId;
+                                    return newState;
+                                });
+                            }).bind(this)
+                        }
+                    )
+                ].concat(!this.state.userIdShown ? [] : [
+                    React.createElement(
+                        DemographicsShowAjaxAndView,
+                        {
+                            key: `demographics-${this.state.userIdShown}`,
+                            userId: this.state.userIdShown
+                        }
+                    )
+                ])
+            );
+        }
+    };
 
     // TODO: make a page (/demographics_by_user.html) which has a user picker then renders the
     //   DemographicsShowAjaxAndView below it
 
     // TODO: make a page (/demographics_lookup.html) which renders DemographicsLookupAjaxAndView
-    return [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView];
+    return [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsByUserAjaxAndView];
 })();

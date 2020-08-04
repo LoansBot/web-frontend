@@ -164,6 +164,8 @@ const NavbarLoader = (function() {
                 return ['Tools', 'recheck'];
             } else if (name === 'view-self-demographics') {
                 return ['Account', 'my-demographics'];
+            } else if (name === 'view-others-demographics') {
+                return ['Account', 'others-demographics']
             }
 
             return null;
@@ -263,6 +265,13 @@ const NavbarLoader = (function() {
                     ariaLabel: 'Navigate to self demographics',
                     current: current,
                     url: `/demographics.html?user_id=${AuthHelper.getAuthToken().userId}`
+                };
+            } else if (name === 'others-demographics') {
+                return {
+                    name: 'User to Demographics (Admin)',
+                    ariaLabel: 'Navigate to page to get demographics by user',
+                    current: current,
+                    url: '/demographics_by_user.html'
                 };
             }
         }
