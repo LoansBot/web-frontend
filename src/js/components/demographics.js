@@ -314,7 +314,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
             let bodyParams = {};
             bodyParams.user_id = this.props.userId;
 
-            for (let key of this.query) {
+            for (let key in this.query) {
                 let val = this.query[key]();
                 if (val !== null && val !== undefined && val.trim().length > 0) {
                     bodyParams[key.replace(/\w[A-Z]/, (x) => x[0] + '_' + x[1].toLowerCase())] = val.trim();
