@@ -5,7 +5,7 @@
             React.createElement('div', {key: 'main', className: 'main'}, [
                 React.createElement(
                     DemographicsByUserAjaxAndView,
-                    {key: 'user-select', userId: userId}
+                    {key: 'user-select'}
                 )
             ])
         ]),
