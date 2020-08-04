@@ -1727,6 +1727,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                         newState.alertState = 'expanded';
                         return newState;
                     });
+                    return;
                 }
 
                 return resp.json();
