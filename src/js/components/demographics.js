@@ -1968,7 +1968,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsB
             super(props);
 
             this.state = {
-                userIdShown = null
+                userIdShown: null
             }
         }
 
