@@ -1742,6 +1742,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView] = (function()
                     newState.purgeFirstClickButtonState = this.hasPermissionToPurge ? 'expanded' : 'closed';
                     newState.purgeConfirmButtonState = 'closed';
                     newState.purgeCaptchaAndButtonState = 'closed';
+                    newState.demographicsState = 'expanded';
                     newState.demographics = {
                         email: json.email,
                         name: json.name,
