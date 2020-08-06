@@ -55,6 +55,9 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsB
      * Renders the actual form used for filling in demographics information,
      * without any of the associated logic.
      *
+     * @param {string} person The person the form is in, may either be the
+     *   string "second" for second person or "third" for third person.
+     *   Defaults to second person.
      * @param {string} emailInitial The initial value for the email field.
      * @param {function} emailQuery A function we call with a function which
      *   requires no arguments and returns the value in the email field.
@@ -80,22 +83,29 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsB
      *   requires no arguments and returns the value in the country field.
      */
     class DemographicsForm extends React.Component {
+        constructor(props) {
+            super(props);
+
+            this.state = {
+                person: this.props.person || 'second'
+            };
+        }
         render() {
             return React.createElement(
                 'div',
                 {className: 'demographics-form'},
                 [
-                    ['email', 'Email', 'Your preferred email address.'],
-                    ['name', 'Full Name', 'Your full legal name as it would be displayed on government ID.'],
-                    ['streetAddress', 'Street Address', 'The street address where you live, if applicable, otherwise leave blank.'],
-                    ['zip', 'Postal Code', 'The postal code or zip code where you live, if applicable, otherwise leave blank.'],
-                    ['city', 'City', 'The city you live in, if applicable, otherwise leave blank.'],
-                    ['state', 'State', 'The state or province you live in.'],
-                    ['country', 'Country', 'The country you live in.']
-                ].map((arr) => {
+                    ['email', 'Email', 'Your preferred email address.', 'The users email address.'],
+                    ['name', 'Full Name', 'Your full legal name as it would be displayed on government ID.', 'The users full legal name.'],
+                    ['streetAddress', 'Street Address', 'The street address where you live, if applicable, otherwise leave blank.', 'The users street address.'],
+                    ['zip', 'Postal Code', 'The postal code or zip code where you live, if applicable, otherwise leave blank.', 'The users postal or zip code.'],
+                    ['city', 'City', 'The city you live in, if applicable, otherwise leave blank.', 'The users city or nearest equivalent.'],
+                    ['state', 'State', 'The state or province you live in.', 'The users state or province.'],
+                    ['country', 'Country', 'The country you live in.', 'The users country']
+                ].map(((arr) => {
                     let key = arr[0];
                     let title = arr[1];
-                    let desc = arr[2];
+                    let desc = this.state.person === 'second' ? arr[2] : arr[3];
 
                     return React.createElement(
                         FormElement,
@@ -111,7 +121,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsB
                             }
                         },
                     );
-                })
+                }).bind(this))
             );
         }
     };
@@ -579,6 +589,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsB
                     React.createElement(
                         FormElement,
                         {
+                            key: 'reason-category',
                             labelText: 'Reason Category',
                             component: DropDown,
                             componentArgs: {
@@ -590,7 +601,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsB
                                 ],
                                 optionQuery: ((query) => this.reasonCategoryQuery = query).bind(this),
                                 optionChanged: ((newKey) => {
-                                    let shouldDisplayLegalCategoryDisclaimer = newKey === 'borrower-consistency';
+                                    let shouldDisplayLegalCategoryDisclaimer = newKey === 'legal';
 
                                     if (shouldDisplayLegalCategoryDisclaimer != this.state.displayLegalCategoryDisclaimer) {
                                         this.setState((state) => {
@@ -606,6 +617,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsB
                     React.createElement(
                         FormElement,
                         {
+                            key: 'reason-additional',
                             labelText: 'Reason (Additional Context)',
                             component: TextInput,
                             componentArgs: {
@@ -620,7 +632,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsB
                             key: 'search-explanation',
                             title: 'How to search',
                             type: 'info'
-                        }
+                        },
                         [
                             React.createElement(
                                 React.Fragment,
@@ -655,7 +667,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsB
                                 'country',
                             ];
 
-                            let result = {};
+                            let result = {key: 'demos-form', person: 'third'};
                             fields.forEach((field) => {
                                 result[field + 'Query'] = ((qry) => this.queries[field] = qry).bind(this);
                             });
@@ -691,7 +703,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsB
                         {
                             key: 'search',
                             text: 'Search',
-                            disabled: loading,
+                            disabled: this.state.loading,
                             onClick: this.search
                         }
                     )
@@ -712,6 +724,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsB
                             React.createElement(
                                 TextDateTime,
                                 {
+                                    key: 'search-made-at',
                                     time: this.state.searchMadeAt,
                                     style: 'absolute'
                                 }
@@ -2003,8 +2016,6 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsB
         }
     };
 
-    // TODO: make a page (/demographics_by_user.html) which has a user picker then renders the
-    //   DemographicsShowAjaxAndView below it
 
     // TODO: make a page (/demographics_lookup.html) which renders DemographicsLookupAjaxAndView
     return [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsByUserAjaxAndView];

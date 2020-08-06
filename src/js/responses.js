@@ -45,7 +45,8 @@ ReactDOM.render(
             React.createElement(ResponsesWidget, {
                 key: 'responses'
             })
-        ])
+        ]),
+        React.createElement(Footer, {key: 'footer'})
     ]),
     document.getElementById('content')
 );

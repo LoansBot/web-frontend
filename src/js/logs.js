@@ -5,7 +5,8 @@ ReactDOM.render(
             React.createElement(LogFeedWithControlsAndLogic, {
                 key: 'logs'
             })
-        ])
+        ]),
+        React.createElement(Footer, {key: 'footer'})
     ]),
     document.getElementById('content')
 );

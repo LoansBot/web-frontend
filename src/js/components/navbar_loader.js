@@ -166,6 +166,8 @@ const NavbarLoader = (function() {
                 return ['Account', 'my-demographics'];
             } else if (name === 'view-others-demographics') {
                 return ['Account', 'others-demographics']
+            } else if (name === 'lookup-demographics') {
+                return ['Account', 'lookup-demographics'];
             }
 
             return null;
@@ -273,6 +275,13 @@ const NavbarLoader = (function() {
                     current: current,
                     url: '/demographics_by_user.html'
                 };
+            } else if (name === 'lookup-demographics') {
+                return {
+                    name: 'Demographics to User (Admin)',
+                    ariaLabel: 'Navigate to the page to get users by demographics',
+                    current: current,
+                    url: '/demographics_lookup.html'
+                }
             }
         }
 

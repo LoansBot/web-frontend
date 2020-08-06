@@ -14,7 +14,8 @@
                     DemographicsShowAjaxAndView,
                     {key: 'user-demos', userId: userId}
                 )
-            ])
+            ]),
+            React.createElement(Footer, {key: 'footer'})
         ]),
         document.getElementById('content')
     );

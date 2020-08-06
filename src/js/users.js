@@ -6,7 +6,8 @@
                 'div',
                 {key: 'main', className: 'main'},
                 React.createElement(UserSelectFormWithAjaxAndView)
-            )
+            ),
+            React.createElement(Footer, {key: 'footer'})
         ]),
         document.getElementById('content')
     );

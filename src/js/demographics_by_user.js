@@ -7,7 +7,8 @@
                     DemographicsByUserAjaxAndView,
                     {key: 'user-select'}
                 )
-            ])
+            ]),
+            React.createElement(Footer, {key: 'footer'})
         ]),
         document.getElementById('content')
     );

@@ -15,7 +15,8 @@
                 React.createElement(UserAjax, {
                     userId: token.userId
                 })
-            )
+            ),
+            React.createElement(Footer, {key: 'footer'})
         ]),
         document.getElementById('content')
     );
