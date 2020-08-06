@@ -836,8 +836,18 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsB
             searchParams.limit = 5;
             searchParams.captcha = token;
 
+            let searchString = '';
+            for(let key of searchParams) {
+                if (searchString.length === 0) {
+                    searchString += '?'
+                } else {
+                    searchString += '&';
+                }
+                searchString += encodeURIComponent(key) + '=' + encodeURIComponent(searchParams[key]);
+            }
+
             api_fetch(
-                '/api/users/demographics',
+                '/api/users/demographics' + searchString,
                 AuthHelper.auth({
                     headers: {
                         'Pragma': 'no-cache',
@@ -894,6 +904,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsB
 
                 return resp.json();
             }).bind(this)).then(((json) => {
+                if (!json) { return; }
                 if (jsons.hits.length === 0) {
                     this.setState((state) => {
                         let newState = Object.assign({}, state);
@@ -940,6 +951,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsB
                     });
                 });
             }).bind(this)).then(((enrichedJson) => {
+                if (!enrichedJson) { return; }
                 this.tokenClear();
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
