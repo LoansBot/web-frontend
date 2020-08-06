@@ -837,7 +837,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsB
             searchParams.captcha = token;
 
             let searchString = '';
-            for(let key of searchParams) {
+            for(let key in searchParams) {
                 if (searchString.length === 0) {
                     searchString += '?'
                 } else {
