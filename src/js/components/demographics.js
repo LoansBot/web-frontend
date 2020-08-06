@@ -786,7 +786,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsB
                 reason = reasonCategory || '(no category)';
             }
 
-            let searchParams = {};
+            let searchParams = {reason: reason};
             for (let key in this.queries) {
                 let val = this.queries[key]();
                 if (val === null || val === undefined || val.trim().length === 0) {
