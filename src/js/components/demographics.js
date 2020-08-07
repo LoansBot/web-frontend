@@ -937,9 +937,9 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsB
                                 return;
                             }
                             return resp.json();
-                        }).then((json) => {
+                        }).then((innerJson) => {
                             if (rejected) { return; }
-                            match.username = json.username;
+                            match.username = innerJson.username;
                             if (json.hits.filter((i) => i.username === null || i.username === undefined).length === 0) {
                                 resolve(json);
                             }
