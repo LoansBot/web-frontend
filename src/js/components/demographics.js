@@ -905,7 +905,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsB
                 return resp.json();
             }).bind(this)).then(((json) => {
                 if (!json) { return; }
-                if (jsons.hits.length === 0) {
+                if (json.hits.length === 0) {
                     this.setState((state) => {
                         let newState = Object.assign({}, state);
                         newState.loading = false;
