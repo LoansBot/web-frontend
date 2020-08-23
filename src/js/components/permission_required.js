@@ -5,6 +5,9 @@ const [PermissionRequired] = (function() {
      *
      * @param {list} permissions The set of required permissions before
      *   children are shown
+     * @param {bool} invert If true we require the user does not have any
+     *   of this listed permissions instead of requiring all the listed
+     *   permissions.
      */
     class PermissionRequired extends React.Component {
         constructor(props) {
@@ -22,7 +25,15 @@ const [PermissionRequired] = (function() {
         }
 
         componentDidMount() {
-            this.checkPermissions();
+            if (this.props.invert && this.props.permissions.length === 0) {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.showChildren = true;
+                    return newState;
+                });
+            } else {
+                this.checkPermissions();
+            }
         }
 
         checkPermissions() {
@@ -57,13 +68,13 @@ const [PermissionRequired] = (function() {
 
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
-                    newState.showChildren = true;
+                    newState.showChildren = !this.props.invert;
                     return newState;
                 });
             }).catch((e) => {
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
-                    newState.showChildren = false;
+                    newState.showChildren = !!this.props.invert;
                     return newState;
                 });
             })
@@ -71,7 +82,8 @@ const [PermissionRequired] = (function() {
     }
 
     PermissionRequired.propTypes = {
-        permissions: PropTypes.string.isRequired
+        permissions: PropTypes.string.isRequired,
+        invert: PropTypes.bool
     };
 
     return [PermissionRequired];
