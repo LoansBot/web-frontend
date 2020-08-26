@@ -59,7 +59,7 @@ const [PermissionRequired] = (function() {
 
                 return resp.json();
             }).then((perms) => {
-                let permsSet = new Set(perms);
+                let permsSet = new Set(perms.permissions);
                 for (let perm of this.props.permissions) {
                     if (!permsSet.has(perm)) {
                         return Promise.reject();

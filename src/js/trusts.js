@@ -11,18 +11,9 @@
             React.createElement(NavbarLoader, {key: 'nav', currentPage: 'trusts'}),
             React.createElement('div', {key: 'main', className: 'main'}, [
                 React.createElement(
-                    UserComment,
+                    UserCommentsOnUserAndPostCommentWithAjax,
                     {
-                        key: 'test',
-                        author: 'Tjstretchalot',
-                        target: 'FoxK56',
-                        comment: '# This is a test\n\n ```js\nvar foo = {};\n```\n',
-                        editable: true,
-                        createdAt: new Date(),
-                        updatedAt: new Date(),
-                        onEdit: ((txt) => {
-                            console.log(txt);
-                        })
+                        targetUserId: 10
                     }
                 ),
 

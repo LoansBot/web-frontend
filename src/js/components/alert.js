@@ -21,7 +21,12 @@ const Alert = (function() {
                     React.createElement(
                         'div',
                         {key: 'body', className: 'alert-body'},
-                        this.props.children || this.props.text
+                        this.props.children && (() => {
+                            if (typeof(this.props.children) === 'string') {
+                                return React.createElement('p', null, this.props.children);
+                            }
+                            return this.props.children;
+                        })() || React.createElement('p', null, this.props.text)
                     )
                 ]
             );
