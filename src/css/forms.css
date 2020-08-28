@@ -17,6 +17,14 @@ form {
     font-variant: small-caps;
 }
 
+.form-label-description {
+    color: #222;
+    margin-top: 0.2em;
+    padding-left: 0.2em;
+    padding-right: 0.2em;
+    margin-bottom: 1em;
+}
+
 .text-input {
     width: 100%;
     padding-top: 7px;

@@ -1,6 +1,7 @@
 const FormElement = (function() {
     /**
      * Describes a form element, which is a label associated with a component.
+     * May use children instead of "component". Using children is recommended.
      *
      * @param {string} labelText The text that goes on the label
      * @param {string} description If provided, shown below the element
@@ -17,8 +18,15 @@ const FormElement = (function() {
                 {className: 'form-label'},
                 [
                     React.createElement('span', {key: 'label', className: 'form-label-text'}, this.props.labelText),
+                ].concat(this.props.component ? [
                     React.createElement(this.props.component, args, null)
-                ].concat(
+                ] : []).concat([
+                    React.createElement(
+                        React.Fragment,
+                        {key: 'children'},
+                        this.props.children
+                    )
+                ]).concat(
                     !this.props.description ? [] : [
                         React.createElement(
                             'div',

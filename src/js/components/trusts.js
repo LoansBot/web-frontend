@@ -1,7 +1,8 @@
 const [
     UserCommentsOnUserAndPostCommentWithAjax,
     UserTrustViewWithAjax,
-    UserTrustLookupWithAjax
+    UserTrustLookupWithAjax,
+    UserTrustControls
 ] = (() => {
     /**
      * Describes a single comment made by a user regarding the trustworthiness
@@ -1227,17 +1228,1115 @@ const [
         targetUserId: PropTypes.number.isRequired
     }
 
+    /**
+     * Shows the trust status of a given user as specified. Accepts children
+     * which are rendered at the bottom of this card.
+     *
+     * @param {number} userId The id of the user
+     * @param {string} username The username of the user
+     * @param {string} trustStatus The enum describing the trust status of the
+     *   user. One of "good", "bad", and "unknown"
+     * @param {string} reason The reason for their trust status. Should be null
+     *   if no reason was provided, either because the trust status is unknown
+     *   and no moderator has commented on it or because we don't have
+     *   permission to view the trust reason.
+     */
     class UserTrustView extends React.Component {
         render() {
-            return React.createElement('p', null, 'UserTrustView');
+            return React.createElement(
+                'div',
+                {className: `user-trust-view user-trust-view-${this.props.trustStatus}`},
+                [
+                    React.createElement(
+                        'span',
+                        {key: 'username', className: 'username'},
+                        this.props.username
+                    ),
+                    React.createElement(
+                        'span',
+                        {className: 'trust-status', key: 'status'},
+                        (() => {
+                            if (this.props.trustStatus === 'good') {
+                                return 'Good lender standing';
+                            } else if (this.props.trustStatus === 'bad') {
+                                return 'Bad lender standing';
+                            } else {
+                                return 'Unknown lender standing';
+                            }
+                        })()
+                    ),
+                    React.createElement(
+                        'p',
+                        {className: 'status-explanation', key: 'explanation'},
+                        (() => {
+                            if (this.props.trustStatus === 'good') {
+                                return (
+                                    'As a lender this user appears to be legitimate. There ' +
+                                    'are no active bans or censures against this user and they are not ' +
+                                    'part of an ongoing investigation.'
+                                );
+                            } else if (this.props.trustStatus === 'bad') {
+                                return (
+                                    'As a lender, this user has an ongoing ban, censure, or investigation.'
+                                );
+                            } else {
+                                return (
+                                    'As a lender, this user is still forming a relationship ' +
+                                    'with the subreddit.'
+                                );
+                            }
+                        })()
+                    ),
+                    React.createElement(
+                        React.Fragment,
+                        {key: 'children'},
+                        this.props.children
+                    )
+                ].concat((this.props.reason === null || this.props.reason === undefined) ? [] : [
+                    React.createElement(
+                        ReactMarkdown,
+                        {key: 'reason', source: this.props.reason}
+                    )
+                ])
+            );
+        }
+
+        componentDidMount() {
+            if (this.props.reason !== null && this.props.reason !== undefined) {
+                updateCodeFormatting()
+            }
+        }
+
+        componentDidUpdate() {
+            if (this.props.reason !== null && this.props.reason !== undefined) {
+                updateCodeFormatting()
+            }
+        }
+
+        updateCodeFormatting() {
+            document.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightBlock(block);
+            });
         }
     };
 
-    class UserTrustViewWithAjax extends React.Component {
+    UserTrustView.propTypes = {
+        userId: PropTypes.number.isRequired,
+        username: PropTypes.string.isRequired,
+        trustStatus: PropTypes.string.isRequired,
+        reason: PropTypes.string
+    }
+
+    /**
+     * Renders a single user trust control with the given name.
+     *
+     * @param {string} name The name of the control
+     */
+    class UserTrustControl extends React.Component {
         render() {
-            return React.createElement('p', null, 'UserTrustViewWithAjax');
+            return React.createElement(
+                'div',
+                {className: 'user-trust-control'},
+                [
+                    React.createElement(
+                        'div',
+                        {key: 'header', className: 'header'},
+                        this.props.name,
+                    ),
+                    React.createElement(
+                        React.Fragment,
+                        {key: 'children'},
+                        this.props.children
+                    )
+                ]
+            )
+        }
+    }
+
+    UserTrustControl.propTypes = {
+        name: PropTypes.string.isRequired
+    };
+
+    /**
+     * Renders the user trust control to set the status of a particular
+     * target.
+     *
+     * @param {func} onSetStatus Called if the user indicates they want to set
+     *   the target users status. Invoked with (status, reason), where status is
+     *   the new status value, which is one of 'good', 'bad', and 'unknown'.
+     */
+    class UserTrustControlSetStatus extends React.Component {
+        constructor(props) {
+            super(props);
+
+            this.state = {
+                statusSelected: false,
+                reasonAcceptable: false,
+                justSubmitted: false
+            };
+
+            this.setReasonAlert = null;
+            this.queryStatus = null;
+            this.reasonTimeout = null;
+            this.submitTimeout = null;
+
+            this.setQueryStatus = this.setQueryStatus.bind(this);
+            this.statusChanged = this.statusChanged.bind(this);
+
+            this.setSetReasonAlert = this.setSetReasonAlert.bind(this);
+            this.setQueryReason = this.setQueryReason.bind(this);
+            this.reasonChanged = this.reasonChanged.bind(this);
+            this.checkReason = this.checkReason.bind(this);
+
+            this.onSubmit = this.onSubmit.bind(this);
+            this.clearSubmitCD = this.clearSubmitCD.bind(this);
+        }
+
+        render() {
+            return React.createElement(
+                UserTrustControl,
+                {
+                    name: 'Set Trust Status'
+                },
+                [
+                    React.createElement(
+                        FormElement,
+                        {
+                            key: 'status-dropdown',
+                            labelText: 'Trust status'
+                        },
+                        React.createElement(
+                            DropDown,
+                            {
+                                options: (this.state.statusSelected ? [] : [
+                                    {key: 'unselected', text: 'Select One'}
+                                ]).concat([
+                                    {key: 'unknown', text: 'Unknown'},
+                                    {key: 'good', text: 'Good'},
+                                    {key: 'bad', text: 'Bad'}
+                                ]),
+                                optionQuery: this.setQueryStatus,
+                                optionChanged: this.statusChanged
+                            }
+                        )
+                    ),
+                    React.createElement(
+                        Alertable,
+                        {
+                            alertSet: this.setSetReasonAlert,
+                            key: 'reason'
+                        },
+                        React.createElement(
+                            FormElement,
+                            {
+                                labelText: 'Reason',
+                                description: (
+                                    'Will not be shared publicly but it must be supplied. ' +
+                                    'May be markdown formatted.'
+                                )
+                            },
+                            React.createElement(
+                                TextArea,
+                                {
+                                    rows: 3,
+                                    textQuery: this.setQueryReason,
+                                    textChanged: this.reasonChanged
+                                }
+                            )
+                        )
+                    ),
+                    React.createElement(
+                        Button,
+                        {
+                            key: 'submit',
+                            type: 'primary',
+                            text: 'Change Status',
+                            disabled: (
+                                !this.state.statusSelected ||
+                                !this.state.reasonAcceptable ||
+                                this.state.justSubmitted
+                            ),
+                            onClick: this.onSubmit
+                        }
+                    )
+                ]
+            )
+        }
+
+        componentWillUnmount() {
+            if (this.reasonTimeout) {
+                clearTimeout(this.reasonTimeout);
+                this.reasonTimeout = null;
+            }
+
+            if (this.submitTimeout) {
+                clearTimeout(this.submitTimeout);
+                this.submitTimeout = null;
+            }
+        }
+
+        setQueryStatus(qry) {
+            this.queryStatus = qry;
+        }
+
+        statusChanged(newStatus) {
+            if (this.state.statusSelected) { return; }
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.statusSelected = true;
+                return newState;
+            });
+        }
+
+        setSetReasonAlert(str) {
+            this.setReasonAlert = str;
+        }
+
+        setQueryReason(qry) {
+            this.queryReason = qry;
+        }
+
+        reasonChanged() {
+            if (this.reasonTimeout) {
+                clearTimeout(this.reasonTimeout);
+            }
+
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.reasonAcceptable = false;
+                return newState;
+            });
+
+            this.reasonTimeout = setTimeout(this.checkReason, 500)
+        }
+
+        checkReason() {
+            this.reasonTimeout = null;
+            let reason = this.queryReason();
+
+            if (reason.length === 0) {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.reasonAcceptable = false;
+                    return newState;
+                });
+                this.setReasonAlert();
+                return;
+            }
+
+            if (reason.length < 5) {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.reasonAcceptable = false;
+                    return newState;
+                });
+
+                this.setReasonAlert(
+                    React.createElement(
+                        Alert,
+                        {
+                            title: 'Reason too short',
+                            type: 'info',
+                            text: 'The reason must be at least 5 characters long.'
+                        }
+                    )
+                );
+                return;
+            }
+
+
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.reasonAcceptable = true;
+                return newState;
+            });
+            this.setReasonAlert();
+        }
+
+        onSubmit() {
+            if (this.state.justSubmitted) { return; }
+
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.justSubmitted = true;
+                return newState;
+            });
+
+            if (this.submitTimeout) {
+                clearTimeout(this.submitTimeout);
+            }
+            this.submitTimeout = setTimeout(this.clearSubmitCD, 3000);
+
+            if (this.props.onSetStatus) {
+                let status = this.queryStatus();
+                let reason = this.queryReason();
+
+                this.props.onSetStatus(status, reason);
+            }
+        }
+
+        clearSubmitCD() {
+            this.submitTimeout = null;
+
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.justSubmitted = false;
+                return newState;
+            })
         }
     };
+
+    UserTrustControlSetStatus.propTypes = {
+        onSetStatus: PropTypes.func
+    };
+
+    /**
+     * Renders the user trust control to add a particular target user to the
+     * trust queue after they have completed a certain minimum number of loans
+     * as lender. When they are added back to the main trust queue this also
+     * specifies the target review time to set (if later than the time when
+     * they complete the loans).
+     *
+     * @param {func} onDelayForLoans Called when the user request that the
+     *   target be readded to the trust queue after they complete a certain
+     *   number of loans as lender. Passed (loans, minReviewAt) where loans
+     *   is an integer number of completed loans as lender and minReviewAt
+     *   is a Date for the earliest time they should be added back to the
+     *   queue even if they have completed all the requested loans sooner.
+     */
+    class UserTrustControlDelayForLoans extends React.Component {
+        constructor(props) {
+            super(props);
+
+            this.state = {
+                acceptableNumberOfLoans: false,
+                justSubmitted: false,
+                initialReviewDate: new Date()
+            };
+
+            this.queryNumberOfLoans = null;
+            this.queryReviewDate = null;
+            this.setNumberOfLoansAlert = null;
+            this.submitTimeout = null;
+
+            this.setSetNumberOfLoansAlert = this.setSetNumberOfLoansAlert.bind(this);
+            this.setQueryNumberOfLoans = this.setQueryNumberOfLoans.bind(this);
+            this.onNumberOfLoansChanged = this.onNumberOfLoansChanged.bind(this);
+            this.setQueryReviewDate = this.setQueryReviewDate.bind(this);
+            this.onSubmit = this.onSubmit.bind(this);
+            this.clearSubmitCD = this.clearSubmitCD.bind(this);
+        }
+
+        render() {
+            return React.createElement(
+                UserTrustControl,
+                {name: 'Delay Review based on Number of Loans'},
+                [
+                    React.createElement(
+                        Alertable,
+                        {
+                            key: 'number-of-loans',
+                            alertSet: this.setSetNumberOfLoansAlert
+                        },
+                        React.createElement(
+                            FormElement,
+                            {
+                                labelText: 'Number of loans completed as lender',
+                                description: (
+                                    'This user will be readded to the trust review queue once ' +
+                                    'they complete this number of loans as lender.'
+                                )
+                            },
+                            React.createElement(
+                                TextInput,
+                                {
+                                    type: 'number',
+                                    min: 1,
+                                    step: 1,
+                                    textQuery: this.setQueryNumberOfLoans,
+                                    textChanged: this.onNumberOfLoansChanged
+                                }
+                            )
+                        )
+                    ),
+                    React.createElement(
+                        FormElement,
+                        {
+                            key: 'review-date',
+                            labelText: 'Minimum review date',
+                            description: (
+                                'When this user gets re-added to the trust review queue, what ' +
+                                'date should we specify as the target review date? If it is ' +
+                                'later than the date they complete the loans they may not be ' +
+                                'in the front of the queue. Optional, defaults to now (top of queue).'
+                            )
+                        },
+                        React.createElement(
+                            DateTimePicker,
+                            {
+                                initialDatetime: this.state.initialReviewDate,
+                                datetimeQuery: this.setQueryReviewDate
+                            }
+                        )
+                    ),
+                    React.createElement(
+                        Button,
+                        {
+                            key: 'submit',
+                            text: 'Save Delay',
+                            type: 'primary',
+                            disabled: (
+                                !this.state.acceptableNumberOfLoans ||
+                                this.state.justSubmitted
+                            ),
+                            onClick: this.onSubmit
+                        }
+                    )
+                ]
+            )
+        }
+
+        componentWillUnmount() {
+            if (this.submitTimeout) {
+                clearTimeout(this.submitTimeout);
+                this.submitTimeout = null;
+            }
+        }
+
+        setSetNumberOfLoansAlert(str) {
+            this.setNumberOfLoansAlert = str;
+        }
+
+        setQueryNumberOfLoans(qry) {
+            this.queryNumberOfLoans = qry;
+        }
+
+        onNumberOfLoansChanged(val) {
+            if (!val || val <= 0) {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.acceptableNumberOfLoans = false;
+                    return newState;
+                });
+
+                this.setNumberOfLoansAlert(
+                    React.createElement(
+                        Alert,
+                        {
+                            title: 'Must be positive',
+                            type: 'info',
+                            text: 'The number of loans must be positive'
+                        }
+                    )
+                );
+                return;
+            }
+
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.acceptableNumberOfLoans = true;
+                return newState;
+            });
+            this.setNumberOfLoansAlert();
+        }
+
+        setQueryReviewDate(qry) {
+            this.queryReviewDate = qry;
+        }
+
+        onSubmit() {
+            if (this.state.justSubmitted) { return; }
+
+            if (this.props.onDelayForLoans) {
+                let numberOfLoans = this.queryNumberOfLoans();
+                let reviewDate = this.queryReviewDate() || new Date();
+
+                this.props.onDelayForLoans(numberOfLoans, reviewDate);
+            }
+
+            if (this.submitTimeout) {
+                clearTimeout(this.submitTimeout);
+            }
+
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.justSubmitted = true;
+                return newState;
+            });
+
+            this.submitTimeout = setTimeout(this.clearSubmitCD, 3000);
+        }
+
+        clearSubmitCD() {
+            this.submitTimeout = null;
+
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.justSubmitted = false;
+                return newState;
+            });
+        }
+    };
+
+    UserTrustControlDelayForLoans.propTypes = {
+        onDelayForLoans: PropTypes.func
+    }
+
+    /**
+     * Renders the user trust control to set or change the review date for the
+     * given target user. Since it's not possible to lookup a particular users
+     * review date in the queue, instead this should change a particular review
+     * items review date (if rendered within the context of a queue item),
+     * otherwise this should add a new item to the trust queue for the target
+     * user which has the target date.
+     *
+     * @param {func} onSetOrChangeQueueTime Called when the user requests to
+     *   update the trust queue time for this user. Passed (newReviewAt) which
+     *   is the new trust queue review date that the user wants as a Date.
+     */
+    class UserTrustControlSetOrChangeQueueTime extends React.Component {
+        constructor(props) {
+            super(props);
+
+            this.state = {
+                initialQueueTime: new Date(new Date().getTime() + (1000*60*60*24*14)),
+                acceptableQueueTime: true,
+                justSubmitted: false
+            };
+
+            this.queryQueueTime = null;
+            this.setQueueTimeAlert = null;
+            this.submitTimeout = null;
+
+            this.setQueryQueueTime = this.setQueryQueueTime.bind(this);
+            this.setSetQueueTimeAlert = this.setSetQueueTimeAlert.bind(this);
+            this.queueTimeChanged = this.queueTimeChanged.bind(this);
+            this.onSubmit = this.onSubmit.bind(this);
+            this.clearSubmitCD = this.clearSubmitCD.bind(this);
+        }
+
+        render() {
+            return React.createElement(
+                UserTrustControl,
+                {name: 'Review Later'},
+                [
+                    React.createElement(
+                        Alertable,
+                        {
+                            alertSet: this.setSetQueueTimeAlert,
+                            key: 'review-date'
+                        },
+                        React.createElement(
+                            FormElement,
+                            {
+                                labelText: 'Review date'
+                            },
+                            React.createElement(
+                                DateTimePicker,
+                                {
+                                    initialDatetime: this.state.initialQueueTime,
+                                    datetimeQuery: this.setQueryQueueTime,
+                                    datetimeChanged: this.queueTimeChanged
+                                }
+                            )
+                        )
+                    ),
+                    React.createElement(
+                        Button,
+                        {
+                            key: 'submit',
+                            text: 'Set Review Date',
+                            type: 'primary',
+                            disabled: !this.state.acceptableQueueTime || this.state.justSubmitted,
+                            onClick: this.onSubmit
+                        }
+                    )
+                ]
+            );
+        }
+
+        componentWillUnmount() {
+            if (this.submitTimeout) {
+                clearTimeout(this.submitTimeout);
+                this.submitTimeout = null;
+            }
+        }
+
+        setQueryQueueTime(qry) {
+            this.queryQueueTime = qry;
+        }
+
+        setSetQueueTimeAlert(str) {
+            this.setQueueTimeAlert = str;
+        }
+
+        queueTimeChanged(newTime) {
+            if (!newTime) {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.acceptableQueueTime = false;
+                    return newState;
+                });
+
+                this.setQueueTimeAlert(
+                    React.createElement(
+                        Alert,
+                        {
+                            type: 'info',
+                            title: 'Invalid queue time',
+                            text: 'Make sure the date and time are filled out.'
+                        }
+                    )
+                );
+                return;
+            }
+
+            if (newTime < new Date()) {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.acceptableQueueTime = false;
+                    return newState;
+                });
+
+                this.setQueueTimeAlert(
+                    React.createElement(
+                        Alert,
+                        {
+                            type: 'info',
+                            title: 'Queue time in past',
+                            text: 'The time you have selected is in the past!'
+                        }
+                    )
+                );
+                return;
+            }
+
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.acceptableQueueTime = true;
+                return newState;
+            });
+            this.setQueueTimeAlert();
+        };
+
+        onSubmit() {
+            if (this.state.justSubmitted) { return; }
+
+            let reviewDate = this.queryQueueTime();
+            if (!reviewDate) { return; }
+
+            if (this.props.onSetOrChangeQueueTime) {
+                this.props.onSetOrChangeQueueTime(reviewDate);
+            }
+
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.justSubmitted = true;
+                return newState;
+            });
+
+            if (this.submitTimeout) {
+                clearTimeout(this.submitTimeout);
+            }
+
+            this.submitTimeout = setTimeout(this.clearSubmitCD, 3000);
+        }
+
+        clearSubmitCD() {
+            this.submitTimeout = null;
+
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.justSubmitted = false;
+                return newState;
+            });
+        }
+    };
+
+    /**
+     * Renders the user trust controls when told which parts the authenticated
+     * user has permission to do.
+     *
+     * @param {bool} canSetStatus True if the user has permission to set the
+     *   trust status for this user, false if they do not. Note we should be
+     *   careful to delete the corresponding queue item if this is being done
+     *   in the context of the trust queue. False if they do not.
+     * @param {func} onSetStatus Called when the user requests the status for
+     *   this user be changed. Passed (status, reason), where status is the
+     *   new status value, which is one of 'good', 'bad', and 'unknown'.
+     * @param {func} setStatusAlertSet Called with a function that will set the
+     *   alert status for the set status button.
+     * @param {bool} canDelayForLoans True if the user can upsert this users
+     *   loan delay, causing them to automatically get added back to the trust
+     *   queue after reaching a certain number of completed loans as lender.
+     *   False if they do not.
+     * @param {func} onDelayForLoans Called when the user request that this
+     *   user be readded to the trust queue after they complete a certain
+     *   number of loans as lender. Passed (loans, minReviewAt) where loans
+     *   is an integer number of completed loans as lender and minReviewAt
+     *   is a Date for the earliest time they should be added back to the
+     *   queue even if they have completed all the requested loans sooner.
+     * @param {func} delayForLoansAlertSet Called with a function that will set
+     *   the alert status for the delay for loans button.
+     * @param {bool} canSetOrChangeQueueTime True if the user can set a trust
+     *   queue time (or change the current set queue time within this item).
+     *   False if the user cannot set or change the trust queue time for this
+     *   user.
+     * @param {func} onSetOrChangeQueueTime Called when the user requests to
+     *   update the trust queue time for this user. Passed (newReviewAt) which
+     *   is the new trust queue review date that the user wants as a Date.
+     * @param {func} setOrChangeQueueTimeAlertSet Called with a function that
+     *   will set the alert status for the set or change queue time button.
+     */
+    class UserTrustControls extends React.Component {
+        render() {
+            return React.createElement(
+                React.Fragment,
+                null,
+                [].concat(this.props.canSetStatus ? [
+                    React.createElement(
+                        Alertable,
+                        {
+                            key: 'set-status',
+                            alertSet: this.props.setStatusAlertSet
+                        },
+                        React.createElement(
+                            UserTrustControlSetStatus,
+                            {onSetStatus: this.props.onSetStatus}
+                        )
+                    )
+                ] : []).concat(this.props.canDelayForLoans ? [
+                    React.createElement(
+                        Alertable,
+                        {
+                            key: 'delay-for-loans',
+                            alertSet: this.props.delayForLoansAlertSet
+                        },
+                        React.createElement(
+                            UserTrustControlDelayForLoans,
+                            {onDelayForLoans: this.props.onDelayForLoans}
+                        )
+                    )
+                ] : []).concat(this.props.canSetOrChangeQueueTime ? [
+                    React.createElement(
+                        Alertable,
+                        {
+                            key: 'set-or-change-queue-time',
+                            alertSet: this.props.setOrChangeQueueTimeAlertSet
+                        },
+                        React.createElement(
+                            UserTrustControlSetOrChangeQueueTime,
+                            {onSetOrChangeQueueTime: this.props.onSetOrChangeQueueTime}
+                        )
+                    )
+                ] : [])
+            );
+        }
+    }
+
+    UserTrustControls.propTypes = {
+        canSetStatus: PropTypes.bool,
+        onSetStatus: PropTypes.func,
+        canDelayForLoans: PropTypes.bool,
+        onDelayForLoans: PropTypes.func,
+        canSetOrChangeQueueTime: PropTypes.bool,
+        onSetOrChangeQueueTime: PropTypes.func
+    };
+
+    /**
+     * Renders the user trust controls appropriate for the logged in users
+     * permissions when targeting the given user, potentially within the
+     * context of a particular queue item.
+     *
+     * @param {number} targetUserId The user id that is being targeted
+     * @param {string} queueItemUuid If we're in the context of a particular
+     *   queue item for this user, this is should be the uuid of that queue
+     *   item. Otherwise this should be null
+     */
+    class UserTrustControlsWithAjax extends React.Component {
+        // TODO
+    }
+
+    UserTrustControlsWithAjax.propTypes = {
+        targetUserId: PropTypes.number.isRequired,
+        queueItemUuid: PropTypes.string
+    };
+
+    /**
+     * Shows the trust status of the given user, fetching it via an ajax call.
+     * This will always fetch the highly cached variant first and then may
+     * fetch the trust reason afterward if the user has sufficient permissions
+     * to do so.
+     *
+     * @param {number} userId The id of the user
+     */
+    class UserTrustViewWithAjax extends React.Component {
+        constructor(props) {
+            super(props);
+
+            this.state = {
+                state: 'loading',
+                alertVisible: false,
+                alert: React.createElement(
+                    Alert,
+                    {
+                        type: 'info',
+                        title: 'Info',
+                        text: 'info'
+                    }
+                ),
+                username: null,
+                trustStatus: null,
+                reason: null
+            }
+        }
+
+        render() {
+            return React.createElement(
+                React.Fragment,
+                null,
+                [
+                    React.createElement(
+                        SmartHeightEased,
+                        {
+                            key: 'spinner',
+                            initialState: 'expanded',
+                            desiredState: this.state.state === 'loading' ? 'expanded' : 'closed'
+                        },
+                        React.createElement(CenteredSpinner)
+                    ),
+                    React.createElement(
+                        SmartHeightEased,
+                        {
+                            key: 'alert',
+                            initialState: 'closed',
+                            desiredState: this.state.alertVisible ? 'expanded' : 'closed'
+                        },
+                        this.state.alert
+                    ),
+                    React.createElement(
+                        SmartHeightEased,
+                        {
+                            key: 'trust-status',
+                            initialState: 'closed',
+                            desiredState: this.state.state === 'visible' ? 'expanded' : 'closed'
+                        },
+                        React.createElement(
+                            UserTrustView,
+                            {
+                                userId: this.props.userId,
+                                username: this.state.username || 'username',
+                                trustStatus: this.state.trustStatus || 'unknown',
+                                reason: this.state.reason
+                            }
+                        )
+                    )
+                ]
+            )
+        }
+
+        componentDidMount() {
+            this.loadInfo();
+        }
+
+        loadInfo() {
+            let gotUsername = null;
+            let gotPublicInfo = null;
+            let gotPrivateInfo = null;
+
+            api_fetch(
+                `/api/users/${this.props.userId}`,
+                AuthHelper.auth()
+            ).then((resp) => {
+                if (gotUsername !== null) { return; }
+
+                if (!resp.ok) {
+                    gotUsername = false;
+                    AlertHelper.createFromResponse('fetch username', resp).then((alert) =>
+                        this.setState((state) => {
+                            let newState = Object.assign({}, state);
+                            newState.state = 'errored';
+                            newState.alertVisible = true;
+                            newState.alert = alert;
+                            return newState;
+                        })
+                    );
+                    return;
+                }
+
+                return resp.json();
+            }).then((json) => {
+                if (gotUsername !== null) { return; }
+
+                gotUsername = true;
+                let hadGotInfo = gotPublicInfo;
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    if (hadGotInfo) {
+                        newState.state = 'visible';
+                        newState.alertVisible = false;
+                    }
+                    newState.username = json.username;
+                    return newState;
+                });
+            }).catch(() => {
+                if (gotUsername !== null) { return; }
+
+                gotUsername = false;
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.state = 'errored';
+                    newState.alertVisible = true;
+                    newState.alert = AlertHelper.createFetchError();
+                    return newState;
+                });
+            })
+
+            api_fetch(
+                `/api/trusts/${this.props.userId}`,
+                AuthHelper.auth()
+            ).then((resp) => {
+                if (gotPublicInfo !== null) { return; }
+
+                if (!resp.ok) {
+                    gotPublicInfo = false;
+                    AlertHelper.createFromResponse('fetch standard trust info', resp).then((alert) => {
+                        if (!gotPublicInfo) {
+                            this.setState((state) => {
+                                let newState = Object.assign({}, state);
+                                newState.state = 'errored';
+                                newState.alertVisible = true;
+                                newState.alert = alert;
+                                return newState;
+                            })
+                        }
+                    });
+                    return;
+                }
+
+                return resp.json();
+            }).then((json) => {
+                if (gotPublicInfo !== null) { return; }
+
+                gotPublicInfo = true;
+                let hadGotUsername = gotUsername;
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    if (hadGotUsername) {
+                        newState.state = 'visible';
+                        newState.alertVisible = false;
+                    }
+                    newState.trustStatus = json.status;
+                    return newState;
+                });
+            }).catch(() => {
+                if (gotPublicInfo !== null) { return; }
+
+                gotPublicInfo = false;
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.state = 'errored';
+                    newState.alertVisible = true;
+                    newState.alert = AlertHelper.createFetchError();
+                    return newState;
+                });
+            });
+
+            this.considerLoadReason().then((json) => {
+                if (gotPrivateInfo !== null) { return; }
+                gotPrivateInfo = true;
+                gotPublicInfo = true;
+
+                let hadGotUsername = gotUsername;
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    if (hadGotUsername) {
+                        newState.state = 'visible';
+                        newState.alertVisible = false;
+                    }
+                    newState.trustStatus = json.status;
+                    newState.reason = json.reason;
+                    return newState;
+                });
+            }).catch(() => {
+                if (gotPrivateInfo !== null) { return; }
+                gotPrivateInfo = false;
+            });
+        }
+
+        considerLoadReason() {
+            return new Promise((resolve, reject) => {
+                let authtoken = AuthHelper.getAuthToken();
+
+                if (authtoken === null) {
+                    reject();
+                    return;
+                }
+
+                let requiredViewPerm = (
+                    authtoken.userId === this.props.userId ? 'view-self-trust' : 'view-others-trust'
+                );
+
+                let requiredViewReasonPerm = 'view-trust-reasons';
+
+                let handled = false;
+                api_fetch(
+                    `/api/users/${authtoken.userId}/permissions`,
+                    AuthHelper.auth()
+                ).then((resp) => {
+                    if (!resp.ok) {
+                        handled = true;
+                        reject();
+                        return;
+                    }
+
+                    return resp.json();
+                }).then((json) => {
+                    if (handled) { return; }
+
+                    let permsSet = new Set(json.permissions);
+                    if (!permsSet.has(requiredViewPerm)) {
+                        handled = true;
+                        reject();
+                        return;
+                    }
+
+                    if (!permsSet.has(requiredViewReasonPerm)) {
+                        handled = true;
+                        reject();
+                        return;
+                    }
+
+                    return api_fetch(
+                        `/api/trusts/${this.props.userId}/private`,
+                        AuthHelper.auth()
+                    );
+                }).then((resp) => {
+                    if (handled) { return; }
+
+                    if (!resp.ok) {
+                        handled = true;
+                        reject();
+                        return;
+                    }
+
+                    return resp.json();
+                }).then((json) => {
+                    if (handled) { return; }
+                    handled = true;
+                    resolve(json);
+                }).catch(() => {
+                    if (handled) { return; }
+
+                    reject();
+                });
+            });
+        }
+    };
+
+    UserTrustViewWithAjax.propTypes = {
+        userId: PropTypes.number.isRequired
+    }
 
     class UserTrustLookupWithAjax extends React.Component {
         render() {
@@ -1249,5 +2348,6 @@ const [
         UserCommentsOnUserAndPostCommentWithAjax,
         UserTrustViewWithAjax,
         UserTrustLookupWithAjax,
+        UserTrustControls
     ];
 })();

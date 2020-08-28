@@ -11,8 +11,25 @@
             React.createElement(NavbarLoader, {key: 'nav', currentPage: 'trusts'}),
             React.createElement('div', {key: 'main', className: 'main'}, [
                 React.createElement(
+                    UserTrustViewWithAjax,
+                    {
+                        key: 'trust',
+                        userId: 10
+                    }
+                ),
+                React.createElement(
+                    UserTrustControls,
+                    {
+                        key: 'test-controls',
+                        canSetStatus: true,
+                        canDelayForLoans: true,
+                        canSetOrChangeQueueTime: true
+                    }
+                ),
+                React.createElement(
                     UserCommentsOnUserAndPostCommentWithAjax,
                     {
+                        key: 'comments',
                         targetUserId: 10
                     }
                 ),

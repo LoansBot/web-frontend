@@ -1,4 +1,4 @@
-.user-trust-comment {
+.user-trust-comment, .user-trust-control {
     border-style: solid;
     border-color: #e3e3e3;
     border-width: 1px;
@@ -6,6 +6,7 @@
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.09);
     box-sizing: border-box;
     padding: 1em 1em;
+    margin-bottom: 4px;
 }
 
 .user-trust-comment .header .author {
@@ -21,6 +22,48 @@
 
 .user-trust-comment .header .updated-at {
     display: block;
+}
+
+.user-trust-view {
+    box-shadow: 0px 1px 4px 0px #a9a9a9;
+    border: 1px solid #333;
+    padding: 1em;
+    font-size: 14pt;
+    color: #000;
+    margin-bottom: 1em;
+}
+
+.user-trust-view .username {
+    font-weight: bold;
+    display: block;
+}
+
+.user-trust-view .trust-status {
+    display: block;
+    width: 100%;
+    text-align: center;
+    font-size: larger;
+    margin-top: 1em;
+}
+
+.user-trust-view-unknown {
+    /* DARK, BLUE */
+    background-color: #3399FF;
+}
+
+.user-trust-view-bad {
+    /* MEDIUM, RED */
+    background-color: rgb(255, 154, 154);
+}
+
+.user-trust-view-good {
+    /* LIGHT, GREEN */
+    background-color: rgb(214, 255, 214);
+}
+
+.user-trust-control .header {
+    font-size: large;
+    margin-bottom: 0.7em;
 }
 
 .hljs {
