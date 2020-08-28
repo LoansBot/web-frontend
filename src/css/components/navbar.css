@@ -8,6 +8,12 @@
     transition: background-color 0.15s ease-in-out;
     font-weight: bold;
     cursor: pointer;
+    text-decoration: none;
+    color: black;
+}
+
+.navbar-item a {
+    text-decoration: none;
 }
 
 .navbar-item:hover {
