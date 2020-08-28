@@ -20,6 +20,10 @@ const NavBar = (function() {
    *  it is rendered, false not to. Always treated as false if not focusable
    * @param {function} refocus A function which we call with a function which
    *  will force focus onto this item
+   * @param {string} url If specified we use an a href for click handling rather
+   *   than javascript which is much less punished by chrome. If this is not
+   *   used, opened tabs are not allowed to run essentially any javascript after
+   *   load
    */
   class NavBarItem extends React.Component {
     constructor(props) {
@@ -46,13 +50,20 @@ const NavBar = (function() {
         parentProps.aria_current = 'page';
       }
 
-      return cE('div', parentProps, this.props.name);
+      if (this.props.url) {
+        parentProps.href = this.props.url;
+      }
+
+      return cE(this.props.url ? 'a': 'div', parentProps, this.props.name);
     }
 
     componentDidMount() {
-      for (let evt of ['click', 'mouseup', 'mousedown']) {
-        this.element.current.addEventListener(evt, ((e) => this.handleClick(e, evt)).bind(this));
+      if (!this.props.url) {
+        for (let evt of ['click', 'mouseup', 'mousedown']) {
+          this.element.current.addEventListener(evt, ((e) => this.handleClick(e, evt)).bind(this));
+        }
       }
+
       if (this.props.refocus) {
         this.props.refocus((() => {
           this.element.current.focus()
@@ -95,7 +106,8 @@ const NavBar = (function() {
     clicked: PropTypes.func.isRequired,
     focused: PropTypes.func.isRequired,
     shouldRipFocus: PropTypes.bool.isRequired,
-    refocus: PropTypes.func
+    refocus: PropTypes.func,
+    url: PropTypes.string
   };
 
 
@@ -123,6 +135,8 @@ const NavBar = (function() {
    *     Passed an boolean which is true for primary clicks and false for
    *     auxiliary clicks (middle click). Middle click should open in a new
    *     tab.
+   *   - url: If specified the apply function is replaced with a friendly
+   *     href implementation
    * @param {function} exit A function which is called when the user tries to
    *     close this row. Returns true if this was a nested row and hence it
    *     could be closed and false if nothing happened. A null function is
@@ -179,7 +193,8 @@ const NavBar = (function() {
             focusable: !this.props.closing && idx == this.state.focusedIndex,
             shouldRipFocus: this.state.shouldRipFocus,
             ariaLabel: item.ariaLabel,
-            clicked: item.enter ? item.enter.bind(item) : item.apply.bind(item),
+            clicked: item.enter ? item.enter.bind(item) : (item.apply && item.apply.bind(item)),
+            url: item.url,
             refocus: ((rfc) => this.refocusers[idx] = rfc).bind(this)
           }
         );
@@ -394,7 +409,8 @@ const NavBar = (function() {
       opensMenu: PropTypes.bool.isRequired,
       expanded: PropTypes.bool.isRequired,
       enter: PropTypes.func,
-      apply: PropTypes.func.isRequired
+      apply: PropTypes.func.isRequired,
+      url: PropTypes.string
     })).isRequired,
     exit: PropTypes.func,
     ariaLabel: PropTypes.string.isRequired,
@@ -512,7 +528,8 @@ const NavBar = (function() {
                 } else {
                   window.open(item.url, '_blank');
                 }
-              } : null)
+              } : null),
+              url: item.url
             };
           }),
           key: 'primary',
@@ -544,7 +561,8 @@ const NavBar = (function() {
                   } else {
                     window.open(item.url, '_blank');
                   }
-                }
+                },
+                url: item.url
               };
             }),
             key: 'secondary',
