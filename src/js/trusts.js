@@ -18,12 +18,10 @@
                     }
                 ),
                 React.createElement(
-                    UserTrustControls,
+                    UserTrustControlsWithAjax,
                     {
                         key: 'test-controls',
-                        canSetStatus: true,
-                        canDelayForLoans: true,
-                        canSetOrChangeQueueTime: true
+                        targetUserId: 10
                     }
                 ),
                 React.createElement(

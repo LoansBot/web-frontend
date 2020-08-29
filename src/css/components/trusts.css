@@ -9,7 +9,15 @@
     margin-bottom: 4px;
 }
 
-.user-trust-comment .header .author {
+.user-trust-view .reason {
+    border-style: solid;
+    border-color: rgba(0, 0, 0, 0.09);
+    background: rgba(0, 0, 0, 0.09);
+    padding: 1em 1em;
+    margin-bottom: 4px;
+}
+
+.user-trust-comment .header .author, .user-trust-view .reason .header {
     font-weight: bold;
 }
 

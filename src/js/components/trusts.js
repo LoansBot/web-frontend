@@ -2,7 +2,7 @@ const [
     UserCommentsOnUserAndPostCommentWithAjax,
     UserTrustViewWithAjax,
     UserTrustLookupWithAjax,
-    UserTrustControls
+    UserTrustControlsWithAjax
 ] = (() => {
     /**
      * Describes a single comment made by a user regarding the trustworthiness
@@ -720,6 +720,9 @@ const [
                 `/api/trusts/comments/${this.props.commentId}`,
                 AuthHelper.auth({
                     method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({
                         comment: newText
                     })
@@ -1294,8 +1297,19 @@ const [
                     )
                 ].concat((this.props.reason === null || this.props.reason === undefined) ? [] : [
                     React.createElement(
-                        ReactMarkdown,
-                        {key: 'reason', source: this.props.reason}
+                        'div',
+                        {key: 'reason', className: 'reason'},
+                        [
+                            React.createElement(
+                                'div',
+                                {key: 'header', className: 'header'},
+                                'Private moderator-provided reason'
+                            ),
+                            React.createElement(
+                                ReactMarkdown,
+                                {key: 'reason', source: this.props.reason}
+                            )
+                        ]
                     )
                 ])
             );
@@ -1303,13 +1317,13 @@ const [
 
         componentDidMount() {
             if (this.props.reason !== null && this.props.reason !== undefined) {
-                updateCodeFormatting()
+                this.updateCodeFormatting()
             }
         }
 
         componentDidUpdate() {
             if (this.props.reason !== null && this.props.reason !== undefined) {
-                updateCodeFormatting()
+                this.updateCodeFormatting()
             }
         }
 
@@ -2052,9 +2066,539 @@ const [
      * @param {string} queueItemUuid If we're in the context of a particular
      *   queue item for this user, this is should be the uuid of that queue
      *   item. Otherwise this should be null
+     * @param {function} onChanged A function we call when the trust status or
+     *   queue for this component changed.
      */
     class UserTrustControlsWithAjax extends React.Component {
-        // TODO
+        constructor(props) {
+            super(props);
+
+            this.state = {
+                loading: true,
+                disabled: true,
+                username: null,
+                canSetStatus: false,
+                canDelayForLoans: false,
+                canSetQueueTime: false
+            };
+
+            this.setAlert = null;
+            this.setAlertForSetStatus = null;
+            this.setAlertForDelayForLoans = null;
+            this.setAlertForSetQueueTime = null;
+            this.timeouts = {};
+
+            this.setSetAlert = this.setSetAlert.bind(this);
+            this.onSetStatus = this.onSetStatus.bind(this);
+            this.setSetAlertForSetStatus = this.setSetAlertForSetStatus.bind(this);
+            this.onDelayForLoans = this.onDelayForLoans.bind(this);
+            this.setSetAlertForDelayForLoans = this.setSetAlertForDelayForLoans.bind(this);
+            this.onSetQueueTime = this.onSetQueueTime.bind(this);
+            this.setSetAlertForSetQueueTime = this.setSetAlertForSetQueueTime.bind(this);
+        }
+
+        render() {
+            return React.createElement(
+                SmartHeightEased,
+                {
+                    initialState: 'closed',
+                    desiredState: this.state.loading ? 'closed' : 'expanded'
+                },
+                React.createElement(
+                    Alertable,
+                    {alertSet: this.setSetAlert},
+                    React.createElement(
+                        UserTrustControls,
+                        {
+                            canSetStatus: this.state.canSetStatus,
+                            onSetStatus: this.onSetStatus,
+                            setStatusAlertSet: this.setSetAlertForSetStatus,
+                            canDelayForLoans: this.state.canDelayForLoans,
+                            onDelayForLoans: this.onDelayForLoans,
+                            delayForLoansAlertSet: this.setSetAlertForDelayForLoans,
+                            canSetOrChangeQueueTime: this.state.canSetQueueTime,
+                            onSetOrChangeQueueTime: this.onSetQueueTime,
+                            setOrChangeQueueTimeAlertSet: this.setSetAlertForSetQueueTime
+                        }
+                    )
+                )
+            );
+        }
+
+        componentDidMount() {
+            this.load();
+        }
+
+        componentWillUnmount() {
+            for (let key in this.timeouts) {
+                if (this.timeouts[key]) {
+                    clearTimeout(this.timeouts[key]);
+                }
+            }
+            this.timeouts = {};
+        }
+
+        load() {
+            let completed = new Array(2);
+
+            this.loadUsername(completed, 0);
+            this.loadPermissions(completed, 1);
+        }
+
+        loadSectionFinished(completed) {
+            if (completed.includes(false)) { return; }
+            if (completed.includes(undefined)) { return; }
+
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.disabled = false;
+                newState.loading = false;
+                return newState;
+            });
+        }
+
+        loadUsername(completed, idx) {
+            let handled = false;
+            api_fetch(
+                `/api/users/${this.props.targetUserId}`,
+                AuthHelper.auth()
+            ).then((resp) => {
+                if (handled) { return; }
+                if (completed.includes(false)) { return; }
+
+                if (!resp.ok) {
+                    handled = true;
+                    completed[idx] = false;
+
+                    AlertHelper.createFromResponse('fetch target username', resp).then(this.setAlert);
+                    return;
+                }
+
+                return resp.json();
+            }).then((json) => {
+                if (handled) { return; }
+                if (completed.includes(false)) { return; }
+
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.username = json.username;
+                    return newState;
+                });
+                handled = true;
+                completed[idx] = true;
+                this.loadSectionFinished(completed);
+            }).catch(() => {
+                if (handled) { return; }
+                if (completed.includes(false)) { return; }
+
+                handled = true;
+                completed[idx] = false;
+
+                this.setAlert(AlertHelper.createFetchError());
+            });
+        }
+
+        loadPermissions(completed, idx) {
+            let info = AuthHelper.getAuthToken();
+            if (!info) {
+                completed[idx] = true;
+                this.loadSectionFinished(completed);
+                return;
+            }
+
+            let handled = false;
+            api_fetch(
+                `/api/users/${info.userId}/permissions`,
+                AuthHelper.auth()
+            ).then((resp) => {
+                if (handled) { return; }
+                if (completed.includes(false)) { return; }
+
+                if (!resp.ok) {
+                    handled = true;
+                    completed[idx] = false;
+                    AlertHelper.createFromResponse('load your permissions', resp).then(this.setAlert);
+                    return;
+                }
+
+                return resp.json();
+            }).then((json) => {
+                if (handled) { return; }
+                if (completed.includes(false)) { return; }
+
+                let permsSet = new Set(json.permissions);
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.canSetQueueTime = permsSet.has(
+                        this.props.queueItemUuid ? 'edit-trust-queue' : 'add-trust-queue'
+                    );
+                    newState.canSetStatus = (
+                        permsSet.has('upsert-trusts') &&
+                        (!this.props.queueItemUuid || permsSet.has('remove-trust-queue'))
+                    );
+                    newState.canDelayForLoans = (
+                        permsSet.has('add-trust-queue') && permsSet.has('edit-trust-queue') &&
+                        (!this.props.queueItemUuid || permsSet.has('remove-trust-queue'))
+                    );
+                    return newState;
+                });
+
+                handled = true;
+                completed[idx] = true;
+                this.loadSectionFinished(completed);
+            }).catch(() => {
+                if (handled) { return; }
+                if (completed.includes(false)) { return; }
+
+                handled = true;
+                completed[idx] = false;
+
+                this.setAlert(AlertHelper.createFetchError());
+            });
+        }
+
+        createRequestStartedAlert() {
+            return React.createElement(
+                Alert,
+                {
+                    type: 'info',
+                    title: 'Sending request'
+                },
+                React.createElement(CenteredSpinner)
+            )
+        }
+
+        setSetAlert(str) {
+            this.setAlert = str;
+        }
+
+        onSetStatus(status, reason) {
+            if (this.state.disabled) { return; }
+
+            if (this.timeouts.statusChanged) {
+                clearTimeout(this.timeouts.statusChanged);
+                this.timeouts.statusChanged = null;
+            }
+
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.disabled = true;
+                return newState;
+            });
+
+            this.setAlertForSetStatus(this.createRequestStartedAlert());
+
+            let handled = false;
+            api_fetch(
+                '/api/trusts',
+                AuthHelper.auth({
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        user_id: this.props.targetUserId,
+                        status: status,
+                        reason: reason
+                    })
+                })
+            ).then((resp) => {
+                if (handled) { return; }
+
+                if (!resp.ok) {
+                    AlertHelper.createFromResponse('set trust status', resp).then(this.setAlertForSetStatus);
+
+                    handled = true;
+                    this.setState((state) => {
+                        let newState = Object.assign({}, state);
+                        newState.disabled = false;
+                        return newState;
+                    });
+                    return;
+                }
+
+                if (this.props.queueItemUuid) {
+                    return api_fetch(
+                        `/api/trusts/${this.props.queueItemUuid}`,
+                        AuthHelper.auth({method: 'DELETE'})
+                    );
+                }
+            }).then((resp) => {
+                if (handled) { return; }
+                if (!this.props.queueItemUuid) { return; }
+
+                if (!resp.ok) {
+                    AlertHelper.createFromResponse('set trust status', resp).then(this.setAlertForSetStatus);
+
+                    handled = true;
+                    this.setState((state) => {
+                        let newState = Object.assign({}, state);
+                        newState.disabled = false;
+                        return newState;
+                    });
+                    return;
+                }
+            }).then(() => {
+                if (handled) { return; }
+
+                if (this.props.onChanged) {
+                    this.props.onChanged();
+                }
+
+                this.setAlertForSetStatus(
+                    React.createElement(
+                        Alert,
+                        {
+                            title: 'Status changed',
+                            type: 'success',
+                            text: 'The trust status for this user has been updated.'
+                        }
+                    )
+                );
+
+                if (this.timeouts.statusChanged) {
+                    clearTimeout(this.timeouts.statusChanged);
+                    this.timeouts.statusChanged = null;
+                }
+
+                this.timeouts.statusChanged = setTimeout(this.setAlertForSetStatus, 5000);
+            }).catch(() => {
+                if (handled) { return; }
+
+                handled = true;
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.disabled = false;
+                    return newState;
+                });
+
+                this.setAlertForSetStatus(AlertHelper.createFetchError());
+            });
+        }
+
+        setSetAlertForSetStatus(str) {
+            this.setAlertForSetStatus = str;
+        }
+
+        onDelayForLoans(loans, minReviewAt) {
+            if (this.state.disabled) { return; }
+
+            minReviewAt = minReviewAt || new Date();
+
+            if (this.timeouts.delayForLoans) {
+                clearTimeout(this.timeouts.delayForLoans);
+                this.timeouts.delayForLoans = null;
+            }
+
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.disabled = true;
+                return newState;
+            });
+
+            this.setAlertForDelayForLoans(this.createRequestStartedAlert());
+
+            let handled = false;
+            api_fetch(
+                '/api/trusts/loan_delays',
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: this.state.username,
+                        loans_completed_as_lender: loans,
+                        review_no_earlier_than: minReviewAt.getTime() / 1000.0
+                    })
+                }
+            ).then((resp) => {
+                if (handled) { return; }
+
+                if (!resp.ok) {
+                    handled = true;
+
+                    this.setState((state) => {
+                        let newState = Object.assign({}, state);
+                        newState.disabled = false;
+                        return newState;
+                    });
+
+                    AlertHelper.createFromResponse(resp).then(this.setAlertForDelayForLoans);
+                    return;
+                }
+
+                if (this.props.queueItemUuid) {
+                    return api_fetch(
+                        `/api/trusts/${this.props.queueItemUuid}`,
+                        AuthHelper.auth({method: 'DELETE'})
+                    );
+                }
+            }).then((resp) => {
+                if (handled) { return; }
+                if (!this.props.queueItemUuid) { return; }
+
+                if (!resp.ok) {
+                    handled = true;
+
+                    this.setState((state) => {
+                        let newState = Object.assign({}, state);
+                        newState.disabled = false;
+                        return newState;
+                    });
+
+                    AlertHelper.createFromResponse(resp).then(this.setAlertForDelayForLoans);
+                }
+            }).then(() => {
+                if (handled) { return; }
+                handled = true;
+
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.disabled = false;
+                    return newState;
+                });
+
+                if (this.props.onChanged) {
+                    this.props.onChanged();
+                }
+
+                this.setAlertForSetStatus(
+                    React.createElement(
+                        Alert,
+                        {
+                            title: 'Reminder set',
+                            type: 'success',
+                            text: (
+                                'This user will be added to the trust queue after reaching ' +
+                                `${loans} loans completed as lender.`
+                            )
+                        }
+                    )
+                );
+
+                if (this.timeouts.delayForLoans) {
+                    clearTimeout(this.timeouts.delayForLoans);
+                    this.timeouts.delayForLoans = null;
+                }
+
+                this.timeouts.delayForLoans = setTimeout(this.setAlertForDelayForLoans, 5000);
+            }).catch(() => {
+                if (handled) { return; }
+                handled = true;
+
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.disabled = false;
+                    return newState;
+                });
+
+                this.setAlertForDelayForLoans(AlertHelper.createFetchError());
+            })
+        }
+
+        setSetAlertForDelayForLoans(str) {
+            this.setAlertForDelayForLoans = str;
+        }
+
+        onSetQueueTime(newReviewAt) {
+            if (this.state.disabled) { return; }
+
+
+            if (this.timeouts.setQueueTime) {
+                clearTimeout(this.timeouts.setQueueTime);
+                this.timeouts.setQueueTime = null;
+            }
+
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.disabled = true;
+                return newState;
+            });
+
+            this.setAlertForSetQueueTime(this.createRequestStartedAlert());
+
+            let handled = false;
+            (
+                this.props.queueItemUuid ?
+                api_fetch(
+                    `/api/trusts/queue/${this.props.queueItemUuid}`,
+                    AuthHelper.auth({
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            review_at: newReviewAt.getTime() / 1000.0
+                        })
+                    })
+                ) :
+                api_fetch(
+                    '/api/trusts/queue',
+                    AuthHelper.auth({
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            username: this.state.username,
+                            review_at: newReviewAt.getTime() / 1000.0
+                        })
+                    })
+                )
+            ).then((resp) => {
+                if (handled) { return; }
+                handled = true;
+
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.disabled = false;
+                    return newState;
+                });
+
+                if (!resp.ok) {
+                    AlertHelper.createFromResponse('set review time', resp).then(this.setAlertForSetQueueTime);
+                    return;
+                }
+
+                if (this.props.onChanged) {
+                    this.props.onChanged();
+                }
+
+                this.setAlertForSetStatus(
+                    React.createElement(
+                        Alert,
+                        {
+                            title: 'Review time set',
+                            type: 'success',
+                            text: `The review time for ${this.state.username} has been updated.`
+                        }
+                    )
+                );
+
+                if (this.timeouts.setQueueTime) {
+                    clearTimeout(this.timeouts.setQueueTime);
+                    this.timeouts.setQueueTime = null;
+                }
+
+                this.timeouts.setQueueTime = setTimeout(this.setAlertForSetQueueTime, 5000);
+            }).catch(() => {
+                if (handled) { return; }
+                handled = true;
+
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.disabled = false;
+                    return newState;
+                });
+
+                this.setAlertForSetQueueTime(AlertHelper.createFetchError());
+            })
+        }
+
+        setSetAlertForSetQueueTime(str) {
+            this.setAlertForSetQueueTime = str;
+        }
     }
 
     UserTrustControlsWithAjax.propTypes = {
@@ -2348,6 +2892,6 @@ const [
         UserCommentsOnUserAndPostCommentWithAjax,
         UserTrustViewWithAjax,
         UserTrustLookupWithAjax,
-        UserTrustControls
+        UserTrustControlsWithAjax
     ];
 })();
