@@ -11,28 +11,6 @@
             React.createElement(NavbarLoader, {key: 'nav', currentPage: 'trusts'}),
             React.createElement('div', {key: 'main', className: 'main'}, [
                 React.createElement(
-                    UserTrustViewWithAjax,
-                    {
-                        key: 'trust',
-                        userId: 10
-                    }
-                ),
-                React.createElement(
-                    UserTrustControlsWithAjax,
-                    {
-                        key: 'test-controls',
-                        targetUserId: 10
-                    }
-                ),
-                React.createElement(
-                    UserCommentsOnUserAndPostCommentWithAjax,
-                    {
-                        key: 'comments',
-                        targetUserId: 10
-                    }
-                ),
-
-                React.createElement(
                     PermissionRequired,
                     {key: 'lookup', permissions: ['view-others-trust']},
                     React.createElement(UserTrustLookupWithAjax)

@@ -3490,7 +3490,7 @@ const [UserAjax, UserSelectFormWithAjax, UserSelectFormWithAjaxAndView] = (funct
                     newState.alert = {
                         title: 'User not found',
                         type: 'info',
-                        text: 'Enter a username above to view settings'
+                        text: 'Enter a username above or select one of the suggestions.'
                     };
                     newState.alertState = 'expanded';
                     return newState;

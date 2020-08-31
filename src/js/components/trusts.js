@@ -2882,9 +2882,108 @@ const [
         userId: PropTypes.number.isRequired
     }
 
+    /**
+     * Renders a text input to lookup users by their username and then view
+     * their trust status based on that. If the user has permission, this
+     * will also include controls for manipulating the users trust status
+     * and the trust comments on the user.
+     */
     class UserTrustLookupWithAjax extends React.Component {
+        constructor(props) {
+            super(props);
+
+            this.state = {
+                userId: null,
+                trustVisible: false,
+                trustViewCounter: 0
+            };
+
+            this.onUserIdChanged = this.onUserIdChanged.bind(this);
+            this.onTrustStatusChanged = this.onTrustStatusChanged.bind(this);
+        }
+
         render() {
-            return React.createElement('p', null, 'UserTrustLookupWithAjax');
+            return React.createElement(
+                React.Fragment,
+                null,
+                [
+                    React.createElement(
+                        UserSelectFormWithAjax,
+                        {
+                            key: 'user-select',
+                            userIdChanged: this.onUserIdChanged
+                        }
+                    )
+                ].concat(this.state.userId === null ? [] : [
+                    React.createElement(
+                        SmartHeightEased,
+                        {
+                            key: 'trust',
+                            initialState: 'closed',
+                            desiredState: this.state.trustVisible ? 'expanded' : 'closed'
+                        },
+                        [
+                            React.createElement(
+                                UserTrustViewWithAjax,
+                                {
+                                    key: `trust-view-${this.state.trustViewCounter}`,
+                                    userId: this.state.userId
+                                }
+                            ),
+                            React.createElement(
+                                UserTrustControlsWithAjax,
+                                {
+                                    key: 'controls',
+                                    targetUserId: this.state.userId,
+                                    onChanged: this.onTrustStatusChanged
+                                }
+                            ),
+                            React.createElement(
+                                PermissionRequired,
+                                {
+                                    key: 'comments',
+                                    permissions: ['view-trust-comments']
+                                },
+                                React.createElement(
+                                    UserCommentsOnUserAndPostCommentWithAjax,
+                                    {
+                                        key: `trust-comments-${this.state.trustViewCounter}`,
+                                        targetUserId: this.state.userId
+                                    }
+                                )
+                            )
+                        ]
+                    )
+                ])
+            );
+        }
+
+        onUserIdChanged(newUserId) {
+            if (newUserId === null) {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.trustVisible = false;
+                    return newState;
+                });
+            } else {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    if (newState.userId !== newUserId) {
+                        newState.trustViewCounter++;
+                    }
+                    newState.userId = newUserId;
+                    newState.trustVisible = true;
+                    return newState;
+                });
+            }
+        }
+
+        onTrustStatusChanged() {
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.trustViewCounter++;
+                return newState;
+            });
         }
     };
 
