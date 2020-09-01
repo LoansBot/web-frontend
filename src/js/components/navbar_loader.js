@@ -155,9 +155,9 @@ const NavbarLoader = (function() {
 
         permToNavItem(name) {
             if (name === 'logs') {
-                return ['logs'];
+                return ['Tools', 'logs'];
             } else if (name === 'responses') {
-                return ['responses'];
+                return ['Tools', 'responses'];
             } else if (name === 'view-others-settings') {
                 return ['Account', 'others-settings'];
             } else if (name === 'recheck') {
@@ -168,6 +168,10 @@ const NavbarLoader = (function() {
                 return ['Account', 'others-demographics']
             } else if (name === 'lookup-demographics') {
                 return ['Account', 'lookup-demographics'];
+            } else if (name === 'view-self-trust') {
+                return ['Tools', 'lookup-trust'];
+            } else if (name === 'view-trust-queue') {
+                return ['Tools', 'trust-queue'];
             }
 
             return null;
@@ -281,6 +285,20 @@ const NavbarLoader = (function() {
                     ariaLabel: 'Navigate to the page to get users by demographics',
                     current: current,
                     url: '/demographics_lookup.html'
+                }
+            } else if (name === 'lookup-trust') {
+                return {
+                    name: 'Lookup Trust Status',
+                    ariaLabel: 'Navigate to the page to get trust status by user',
+                    current: current,
+                    url: '/trusts.html'
+                }
+            } else if (name === 'trust-queue') {
+                return {
+                    name: 'Trust Queue',
+                    ariaLabel: 'Navigate to the page to manage the trust queue',
+                    current: current,
+                    url: '/trust_queue.html'
                 }
             }
         }

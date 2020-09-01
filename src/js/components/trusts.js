@@ -2,7 +2,8 @@ const [
     UserCommentsOnUserAndPostCommentWithAjax,
     UserTrustViewWithAjax,
     UserTrustLookupWithAjax,
-    UserTrustControlsWithAjax
+    UserTrustControlsWithAjax,
+    UserTrustNextQueueItemAjax
 ] = (() => {
     /**
      * Describes a single comment made by a user regarding the trustworthiness
@@ -737,7 +738,7 @@ const [
                         newState.editDisabled = false;
                         return newState;
                     });
-                    AlertHelper.createFromResponse(res).then(this.saveAlertSet);
+                    AlertHelper.createFromResponse('edit comment', res).then(this.saveAlertSet);
                     return;
                 }
 
@@ -962,13 +963,17 @@ const [
     /**
      * Displays a list of user comments on a particular target user,
      * using ajax to fetch which comments to load and then ajax to
-     * actually fetch the comments.
+     * actually fetch the comments. This also occassionally searches
+     * for newer comments.
      *
      * @param {number} targetUserId The id of the target user to display
      *   comments on.
      * @param {func} onCommentPosted A function which we call with a function
      *   which accepts a comment id and adds it to the beginning of the
      *   displayed comments.
+     * @param {func} newerCommentsFetch A function which we call with a function
+     *   which accepts no arguments and fetches newer comments for this user, i.e.,
+     *   comments newer than when we last refreshed comments.
      */
     class UserCommentsOnUserWithAjax extends React.Component {
         constructor(props) {
@@ -982,11 +987,16 @@ const [
                     {type: 'info', title: 'Info', text: 'Info'}
                 ),
                 commentIds: [],
+                nextCreatedAfter: null,
                 nextCreatedBefore: null,
                 loadingMoreComments: false
             };
 
+            this.fetchNewerCommentsTimeout = null;
+            this.loadedAt = new Date();
+
             this.onShowMore = this.onShowMore.bind(this);
+            this.fetchNewerComments = this.fetchNewerComments.bind(this);
         }
 
         render() {
@@ -1027,7 +1037,8 @@ const [
         }
 
         componentDidMount() {
-            this.loadComments();
+            this.loadComments(false);
+            this.fetchNewerCommentsTimeout = setTimeout(this.fetchNewerComments, 10000);
 
             if (this.props.onCommentPosted) {
                 this.props.onCommentPosted(((commentId) => {
@@ -1037,6 +1048,17 @@ const [
                         return newState;
                     })
                 }).bind(this));
+            }
+
+            if (this.props.newerCommentsFetch) {
+                this.props.newerCommentsFetch((() => this.fetchNewerComments(true)).bind(this));
+            }
+        }
+
+        componentWillUnmount() {
+            if (this.fetchNewerCommentsTimeout) {
+                clearTimeout(this.fetchNewerCommentsTimeout);
+                this.fetchNewerCommentsTimeout = null;
             }
         }
 
@@ -1050,22 +1072,69 @@ const [
                 return newState;
             });
 
-            this.loadComments();
+            this.loadComments(false);
         }
 
-        loadComments() {
+        fetchNewerComments(force) {
+            if (force) {
+                if (this.fetchNewerCommentsTimeout) {
+                    clearTimeout(this.fetchNewerCommentsTimeout);
+                }
+                this.fetchNewerCommentsTimeout = null;
+            } else {
+                this.fetchNewerCommentsTimeout = null;
+
+                let msSinceLoad = new Date().getTime() - this.loadedAt.getTime();
+                if (msSinceLoad > 1000 * 60 * 60) {
+                    console.log('auto-disabled comment reloading (1 hour since load)');
+                    return;
+                }
+
+                if (document.hidden) {
+                    this.fetchNewerCommentsTimeout = setTimeout(
+                        this.fetchNewerComments,
+                        60_000
+                    );
+                    return;
+                }
+            }
+
+            this.loadComments(true);
+        }
+
+        loadComments(fetchNewer) {
+            fetchNewer = !!fetchNewer;
+
             let handled = false;
 
             let arrayParams = [
                 ['target_user_id', this.props.targetUserId],
-                ['order', 'desc'],
                 ['limit', 5]
             ];
-            if (this.state.nextCreatedBefore) {
-                arrayParams.push(
-                    ['created_before', this.state.nextCreatedBefore.getTime() / 1000.0]
-                );
+            if (fetchNewer) {
+                arrayParams.push(['order', 'asc']);
+                arrayParams.push(['created_after', this.state.nextCreatedAfter.getTime() / 1000.0]);
+
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.nextCreatedAfter = new Date();
+                    return newState;
+                });
+            } else {
+                arrayParams.push(['order', 'desc']);
+                if (this.state.nextCreatedBefore) {
+                    arrayParams.push(
+                        ['created_before', this.state.nextCreatedBefore.getTime() / 1000.0]
+                    );
+                } else {
+                    this.setState((state) => {
+                        let newState = Object.assign({}, state);
+                        newState.nextCreatedAfter = new Date();
+                        return newState;
+                    });
+                }
             }
+
             let queryParams = arrayParams.map(
                 (arr) => `${arr[0]}=${encodeURIComponent(arr[1])}`
             ).join('&');
@@ -1096,16 +1165,45 @@ const [
 
                 handled = true;
                 this.setState((state) => {
+                    // deduplication is required since we race createdAfter
+
                     let newState = Object.assign({}, state);
                     newState.state = 'visible';
-                    newState.commentIds = newState.commentIds.concat(json.comments);
+                    if (fetchNewer) {
+                        let existingCommentIds = new Set(newState.commentIds);
+                        let commentIdsToPrependReversed = [];
+                        for (let i = json.comments.length - 1; i >= 0; i--) {
+                            let commentId = json.comments[i];
+                            if (!existingCommentIds.has(commentId)) {
+                                commentIdsToPrependReversed.push(commentId);
+                                existingCommentIds.add(commentId);
+                            }
+                        }
+                        newState.commentIds = commentIdsToPrependReversed.reverse().concat(newState.commentIds);
+                    } else {
+                        let existingCommentIds = new Set(newState.commentIds);
+                        newState.commentIds = newState.commentIds.slice();
+                        for (let commentId of json.comments) {
+                            if (!existingCommentIds.has(commentId)) {
+                                newState.commentIds.push(commentId);
+                                existingCommentIds.add(commentId);
+                            }
+                        }
+                        newState.nextCreatedBefore = (
+                            json.before_created_at ? new Date(json.before_created_at * 1000) : null
+                        );
+                    }
                     newState.loadingMoreComments = false;
                     newState.alertShown = false;
-                    newState.nextCreatedBefore = (
-                        json.before_created_at ? new Date(json.before_created_at * 1000) : null
-                    );
                     return newState;
                 });
+
+                if (fetchNewer) {
+                    if (this.fetchNewerCommentsTimeout) {
+                        clearTimeout(this.fetchNewerCommentsTimeout);
+                    }
+                    this.fetchNewerCommentsTimeout = setTimeout(this.fetchNewerComments, 10000);
+                }
             }).catch(() => {
                 if (handled) { return; }
 
@@ -1142,9 +1240,9 @@ const [
                 targetUsername: null
             };
 
-            this.displayNewComment = null;
+            this.fetchNewerComments = null;
 
-            this.setDisplayNewComment = this.setDisplayNewComment.bind(this);
+            this.setFetchNewerComments = this.setFetchNewerComments.bind(this);
             this.onCommentCreated = this.onCommentCreated.bind(this);
         }
 
@@ -1177,7 +1275,7 @@ const [
                         {
                             key: 'show-comments',
                             targetUserId: this.props.targetUserId,
-                            onCommentPosted: this.setDisplayNewComment
+                            newerCommentsFetch: this.setFetchNewerComments
                         }
                     )
                 ]
@@ -1216,14 +1314,12 @@ const [
             });
         }
 
-        setDisplayNewComment(setter) {
-            this.displayNewComment = setter;
+        setFetchNewerComments(setter) {
+            this.fetchNewerComments = setter;
         }
 
-        onCommentCreated(commentId) {
-            if (this.displayNewComment) {
-                this.displayNewComment(commentId);
-            }
+        onCommentCreated() {
+            this.fetchNewerComments();
         }
     }
 
@@ -1968,6 +2064,80 @@ const [
     };
 
     /**
+     * Renders the user trust control to just remove this item from the queue.
+     * This only makes sense if rendered in the context of a trust queue item.
+     *
+     * @param {func} onRemoveFromQueue Called when the user requests to remove
+     *   this item from the queue.
+     */
+    class UserTrustControlRemoveFromQueue extends React.Component {
+        constructor(props) {
+            super(props);
+
+            this.state = {
+                justSubmitted: false
+            };
+
+            this.timeout = null;
+
+            this.clearJustSubmitted = this.clearJustSubmitted.bind(this);
+            this.onSubmit = this.onSubmit.bind(this);
+        }
+
+        render() {
+            return React.createElement(
+                UserTrustControl,
+                {
+                    name: 'Remove from queue'
+                },
+                React.createElement(
+                    Button,
+                    {
+                        type: 'primary',
+                        text: 'Remove from queue',
+                        disabled: this.state.justSubmitted,
+                        onClick: this.onSubmit
+                    }
+                )
+            );
+        }
+
+        componentWillUnmount() {
+            if (this.timeout) {
+                clearTimeout(this.timeout);
+                this.timeout = null;
+            }
+        }
+
+        clearJustSubmitted() {
+            this.timeout = null;
+
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.justSubmitted = false;
+                return newState;
+            });
+        }
+
+        onSubmit() {
+            if (this.state.justSubmitted) { return; }
+            if (this.timeout) { return; }
+
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.justSubmitted = true;
+                return newState;
+            });
+
+            this.timeout = setTimeout(this.clearJustSubmitted, 3000);
+
+            if (this.props.onRemoveFromQueue) {
+                this.props.onRemoveFromQueue();
+            }
+        }
+    };
+
+    /**
      * Renders the user trust controls when told which parts the authenticated
      * user has permission to do.
      *
@@ -2001,6 +2171,13 @@ const [
      *   is the new trust queue review date that the user wants as a Date.
      * @param {func} setOrChangeQueueTimeAlertSet Called with a function that
      *   will set the alert status for the set or change queue time button.
+     * @param {bool} canRemoveFromQueue True if the user can remove this
+     *   queue item, false if there is not a queue item in this context or they
+     *   cannot remove it.
+     * @param {func} onRemoveFromQueue Called when the user requests that we
+     *   remove this queue item.
+     * @param {func} removeFromQueueAlertSet Called with a function that will set
+     *   the alert status for the remove from queue button.
      */
     class UserTrustControls extends React.Component {
         render() {
@@ -2043,7 +2220,19 @@ const [
                             {onSetOrChangeQueueTime: this.props.onSetOrChangeQueueTime}
                         )
                     )
-                ] : [])
+                ] : []).concat(this.props.canRemoveFromQueue ? [
+                    React.createElement(
+                        Alertable,
+                        {
+                            key: 'remove-from-queue',
+                            alertSet: this.props.removeFromQueueAlertSet
+                        },
+                        React.createElement(
+                            UserTrustControlRemoveFromQueue,
+                            {onRemoveFromQueue: this.props.onRemoveFromQueue}
+                        )
+                    )
+                ]: [])
             );
         }
     }
@@ -2051,10 +2240,16 @@ const [
     UserTrustControls.propTypes = {
         canSetStatus: PropTypes.bool,
         onSetStatus: PropTypes.func,
+        setStatusAlertSet: PropTypes.func,
         canDelayForLoans: PropTypes.bool,
         onDelayForLoans: PropTypes.func,
+        delayForLoansAlertSet: PropTypes.func,
         canSetOrChangeQueueTime: PropTypes.bool,
-        onSetOrChangeQueueTime: PropTypes.func
+        onSetOrChangeQueueTime: PropTypes.func,
+        setOrChangeQueueTimeAlertSet: PropTypes.func,
+        canRemoveFromQueue: PropTypes.bool,
+        onRemoveFromQueue: PropTypes.func,
+        removeFromQueueAlertSet: PropTypes.func
     };
 
     /**
@@ -2079,13 +2274,15 @@ const [
                 username: null,
                 canSetStatus: false,
                 canDelayForLoans: false,
-                canSetQueueTime: false
+                canSetQueueTime: false,
+                canRemoveFromQueue: false
             };
 
             this.setAlert = null;
             this.setAlertForSetStatus = null;
             this.setAlertForDelayForLoans = null;
             this.setAlertForSetQueueTime = null;
+            this.setAlertForRemoveFromQueue = null;
             this.timeouts = {};
 
             this.setSetAlert = this.setSetAlert.bind(this);
@@ -2095,6 +2292,8 @@ const [
             this.setSetAlertForDelayForLoans = this.setSetAlertForDelayForLoans.bind(this);
             this.onSetQueueTime = this.onSetQueueTime.bind(this);
             this.setSetAlertForSetQueueTime = this.setSetAlertForSetQueueTime.bind(this);
+            this.onRemoveFromQueue = this.onRemoveFromQueue.bind(this);
+            this.setSetAlertForRemoveFromQueue = this.setSetAlertForRemoveFromQueue.bind(this);
         }
 
         render() {
@@ -2118,7 +2317,10 @@ const [
                             delayForLoansAlertSet: this.setSetAlertForDelayForLoans,
                             canSetOrChangeQueueTime: this.state.canSetQueueTime,
                             onSetOrChangeQueueTime: this.onSetQueueTime,
-                            setOrChangeQueueTimeAlertSet: this.setSetAlertForSetQueueTime
+                            setOrChangeQueueTimeAlertSet: this.setSetAlertForSetQueueTime,
+                            canRemoveFromQueue: this.state.canRemoveFromQueue,
+                            onRemoveFromQueue: this.onRemoveFromQueue,
+                            removeFromQueueAlertSet: this.setSetAlertForRemoveFromQueue
                         }
                     )
                 )
@@ -2239,6 +2441,9 @@ const [
                     newState.canDelayForLoans = (
                         permsSet.has('add-trust-queue') && permsSet.has('edit-trust-queue') &&
                         (!this.props.queueItemUuid || permsSet.has('remove-trust-queue'))
+                    );
+                    newState.canRemoveFromQueue = (
+                        this.props.queueItemUuid && permsSet.has('remove-trust-queue')
                     );
                     return newState;
                 });
@@ -2401,7 +2606,7 @@ const [
             let handled = false;
             api_fetch(
                 '/api/trusts/loan_delays',
-                {
+                AuthHelper.auth({
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
@@ -2411,7 +2616,7 @@ const [
                         loans_completed_as_lender: loans,
                         review_no_earlier_than: minReviewAt.getTime() / 1000.0
                     })
-                }
+                })
             ).then((resp) => {
                 if (handled) { return; }
 
@@ -2424,7 +2629,7 @@ const [
                         return newState;
                     });
 
-                    AlertHelper.createFromResponse(resp).then(this.setAlertForDelayForLoans);
+                    AlertHelper.createFromResponse('delay for loans', resp).then(this.setAlertForDelayForLoans);
                     return;
                 }
 
@@ -2447,7 +2652,7 @@ const [
                         return newState;
                     });
 
-                    AlertHelper.createFromResponse(resp).then(this.setAlertForDelayForLoans);
+                    AlertHelper.createFromResponse('delay for loans', resp).then(this.setAlertForDelayForLoans);
                 }
             }).then(() => {
                 if (handled) { return; }
@@ -2463,7 +2668,7 @@ const [
                     this.props.onChanged();
                 }
 
-                this.setAlertForSetStatus(
+                this.setAlertForDelayForLoans(
                     React.createElement(
                         Alert,
                         {
@@ -2503,7 +2708,6 @@ const [
 
         onSetQueueTime(newReviewAt) {
             if (this.state.disabled) { return; }
-
 
             if (this.timeouts.setQueueTime) {
                 clearTimeout(this.timeouts.setQueueTime);
@@ -2565,7 +2769,7 @@ const [
                     this.props.onChanged();
                 }
 
-                this.setAlertForSetStatus(
+                this.setAlertForSetQueueTime(
                     React.createElement(
                         Alert,
                         {
@@ -2598,6 +2802,81 @@ const [
 
         setSetAlertForSetQueueTime(str) {
             this.setAlertForSetQueueTime = str;
+        }
+
+        onRemoveFromQueue() {
+            if (this.state.disabled) { return; }
+
+            if (this.timeouts.removeFromQueue) {
+                clearTimeout(this.timeouts.removeFromQueue);
+                this.timeouts.removeFromQueue = null;
+            }
+
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.disabled = true;
+                return newState;
+            });
+
+            this.setAlertForRemoveFromQueue(this.createRequestStartedAlert());
+
+            let handled = false;
+            api_fetch(
+                `/api/trusts/queue/${this.props.queueItemUuid}`,
+                AuthHelper.auth({
+                    method: 'DELETE'
+                })
+            ).then((resp) => {
+                handled = true;
+
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.disabled = false;
+                    return newState;
+                });
+
+                if (!resp.ok) {
+                    AlertHelper.createFromResponse('delete from queue', resp).then(this.setAlertForRemoveFromQueue);
+                    return;
+                }
+
+                this.setAlertForRemoveFromQueue(
+                    React.createElement(
+                        Alert,
+                        {
+                            title: 'Removed from queue',
+                            type: 'success',
+                            text: (
+                                'This item in the queue has been removed. ' +
+                                'Press reload at the bottom of the page to get the next ' +
+                                'item in the queue.'
+                            )
+                        }
+                    )
+                );
+
+                if (this.timeouts.removeFromQueue) {
+                    clearTimeout(this.timeouts.removeFromQueue);
+                    this.timeouts.removeFromQueue = null;
+                }
+
+                this.timeouts.removeFromQueue = setTimeout(this.setAlertForRemoveFromQueue, 5000);
+            }).catch(() => {
+                if (handled) { return; }
+                handled = true;
+
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.disabled = false;
+                    return newState;
+                });
+
+                this.setAlertForRemoveFromQueue(AlertHelper.createFetchError());
+            });
+        }
+
+        setSetAlertForRemoveFromQueue(str) {
+            this.setAlertForRemoveFromQueue = str;
         }
     }
 
@@ -2883,6 +3162,77 @@ const [
     }
 
     /**
+     * Renders all the components that describe a users trust status via ajax
+     * calls as appropriate for the user.
+     *
+     * @param {number} userId The id of the user to render
+     * @param {string} queueItemUuid The id of the queue item we're in the context
+     *   of, if we're in the context of a queue item
+     */
+    class UserTrustFullViewWithAjax extends React.Component {
+        constructor(props) {
+            super(props);
+
+            this.state = {
+                trustViewCounter: 0
+            };
+
+            this.onTrustStatusChanged = this.onTrustStatusChanged.bind(this);
+        }
+
+        render() {
+            return React.createElement(
+                React.Fragment,
+                null,
+                [
+                    React.createElement(
+                        UserTrustViewWithAjax,
+                        {
+                            key: `trust-view-${this.props.userId}-${this.state.trustViewCounter}`,
+                            userId: this.props.userId
+                        }
+                    ),
+                    React.createElement(
+                        UserTrustControlsWithAjax,
+                        {
+                            key: 'controls',
+                            targetUserId: this.props.userId,
+                            queueItemUuid: this.props.queueItemUuid,
+                            onChanged: this.onTrustStatusChanged
+                        }
+                    ),
+                    React.createElement(
+                        PermissionRequired,
+                        {
+                            key: 'comments',
+                            permissions: ['view-trust-comments']
+                        },
+                        React.createElement(
+                            UserCommentsOnUserAndPostCommentWithAjax,
+                            {
+                                key: `trust-comments-${this.props.userId}-${this.state.trustViewCounter}`,
+                                targetUserId: this.props.userId
+                            }
+                        )
+                    )
+                ]
+            )
+        }
+
+        onTrustStatusChanged() {
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.trustViewCounter++;
+                return newState;
+            });
+        }
+    }
+
+    UserTrustFullViewWithAjax.propTypes = {
+        userId: PropTypes.number.isRequired
+    };
+
+    /**
      * Renders a text input to lookup users by their username and then view
      * their trust status based on that. If the user has permission, this
      * will also include controls for manipulating the users trust status
@@ -2899,7 +3249,6 @@ const [
             };
 
             this.onUserIdChanged = this.onUserIdChanged.bind(this);
-            this.onTrustStatusChanged = this.onTrustStatusChanged.bind(this);
         }
 
         render() {
@@ -2922,37 +3271,13 @@ const [
                             initialState: 'closed',
                             desiredState: this.state.trustVisible ? 'expanded' : 'closed'
                         },
-                        [
-                            React.createElement(
-                                UserTrustViewWithAjax,
-                                {
-                                    key: `trust-view-${this.state.trustViewCounter}`,
-                                    userId: this.state.userId
-                                }
-                            ),
-                            React.createElement(
-                                UserTrustControlsWithAjax,
-                                {
-                                    key: 'controls',
-                                    targetUserId: this.state.userId,
-                                    onChanged: this.onTrustStatusChanged
-                                }
-                            ),
-                            React.createElement(
-                                PermissionRequired,
-                                {
-                                    key: 'comments',
-                                    permissions: ['view-trust-comments']
-                                },
-                                React.createElement(
-                                    UserCommentsOnUserAndPostCommentWithAjax,
-                                    {
-                                        key: `trust-comments-${this.state.trustViewCounter}`,
-                                        targetUserId: this.state.userId
-                                    }
-                                )
-                            )
-                        ]
+                        React.createElement(
+                            UserTrustFullViewWithAjax,
+                            {
+                                key: 'trust-view',
+                                userId: this.state.userId
+                            }
+                        )
                     )
                 ])
             );
@@ -2977,20 +3302,364 @@ const [
                 });
             }
         }
+    };
 
-        onTrustStatusChanged() {
+    /**
+     * Renders a trust queue item within a trust queue. This shows the review
+     * time for the user and then delegates to a user trust full view. This
+     *
+     * @param {string} uuid The unique identifier for this trust queue item
+     * @param {string} username The username of the user this item is for
+     * @param {number} userId The user id of the user this item is for
+     * @param {Date} reviewAt The time at which this user is set to be reviewed
+     */
+    class UserTrustQueueItem extends React.Component {
+        render() {
+            let isDue = this.props.reviewAt <= new Date();
+            return React.createElement(
+                'div',
+                {
+                    className: `trust-queue-item trust-queue-item-${isDue ? 'due' : 'future'}`
+                },
+                [
+                    React.createElement(
+                        'h2',
+                        {key: 'review-at', className: 'review-at'},
+                        React.createElement(
+                            React.Fragment,
+                            null,
+                            [
+                                React.createElement(
+                                    React.Fragment,
+                                    {key: 'prefix'},
+                                    'Set to be reviewed '
+                                ),
+                                React.createElement(
+                                    TextDateTime,
+                                    {
+                                        key: 'time',
+                                        time: this.props.reviewAt
+                                    }
+                                )
+                            ]
+                        )
+                    ),
+                    React.createElement(
+                        UserTrustFullViewWithAjax,
+                        {
+                            key: 'trust-view',
+                            userId: this.props.userId,
+                            queueItemUuid: this.props.uuid
+                        }
+                    )
+                ]
+            );
+        }
+    };
+
+    UserTrustQueueItem.propTypes = {
+        uuid: PropTypes.string.isRequired,
+        username: PropTypes.string.isRequired,
+        userId: PropTypes.number.isRequired,
+        reviewAt: PropTypes.instanceOf(Date).isRequired
+    }
+
+    /**
+     * Renders a trust queue item within a trust queue, enriching the parameters
+     * which aren't directly passed with ajax.
+     *
+     * @param {string} uuid The unique identifier for this trust queue item
+     * @param {string} username The username of the user this item is for
+     * @param {Date} reviewAt The time at which this user is set to be reviewed
+     */
+    class UserTrustQueueItemAjax extends React.Component {
+        constructor(props) {
+            super(props);
+
+            this.state = {
+                userId: null
+            };
+
+            this.setAlert = null;
+
+            this.setSetAlert = this.setSetAlert.bind(this);
+        }
+
+        render() {
+            return React.createElement(
+                Alertable,
+                {
+                    alertSet: this.setSetAlert
+                },
+                this.state.userId === null ? React.createElement(React.Fragment) : React.createElement(
+                    UserTrustQueueItem,
+                    {
+                        uuid: this.props.uuid,
+                        username: this.props.username,
+                        userId: this.state.userId,
+                        reviewAt: this.props.reviewAt
+                    }
+                )
+            );
+        }
+
+        componentDidMount() {
+            this.loadUserId();
+        }
+
+        loadUserId() {
+            let handled = false;
+            api_fetch(
+                `/api/users/lookup?q=${encodeURIComponent(this.props.username)}`,
+                AuthHelper.auth()
+            ).then((resp) => {
+                if (handled) { return; }
+
+                if (!resp.ok) {
+                    handled = true;
+                    AlertHelper.createFromResponse('fetch user id', resp).then(this.setAlert);
+                    return;
+                }
+
+                return resp.json();
+            }).then((json) => {
+                if (handled) { return; }
+
+                handled = true;
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.userId = json.id;
+                    return newState;
+                });
+            }).catch(() => {
+                if (handled) { return; }
+
+                this.setAlert(AlertHelper.createFetchError());
+            })
+        }
+
+        setSetAlert(str) {
+            this.setAlert = str;
+        }
+    }
+
+    UserTrustQueueItemAjax.propTypes = {
+        uuid: PropTypes.string.isRequired,
+        username: PropTypes.string.isRequired,
+        reviewAt: PropTypes.instanceOf(Date).isRequired
+    };
+
+    /**
+     * Uses ajax to fetch the next queue item in the queue, if there is one,
+     * and then render it.
+     */
+    class UserTrustNextQueueItemAjax extends React.Component {
+        constructor(props) {
+            super(props);
+
+            this.state = {
+                itemA: {
+                    visible: false,
+                    uuid: null,
+                    username: null,
+                    reviewAt: null
+                },
+                itemB: {
+                    visible: false,
+                    uuid: null,
+                    username: null,
+                    reviewAt: null
+                },
+                queueEmpty: false,
+                reloadDisabled: true
+            };
+
+            this.setAlert = null;
+
+            this.setSetAlert = this.setSetAlert.bind(this);
+            this.reload = this.reload.bind(this);
+        }
+
+        render() {
+            return React.createElement(
+                Alertable,
+                {
+                    alertSet: this.setSetAlert
+                },
+                [
+                    React.createElement(
+                        SmartHeightEased,
+                        {
+                            key: 'done-alert',
+                            initialState: 'closed',
+                            desiredState: this.state.queueEmpty ? 'expanded' : 'closed'
+                        },
+                        React.createElement(
+                            Alert,
+                            {
+                                type: 'success',
+                                title: 'Queue empty',
+                                text: (
+                                    'Great work! There are no users which are due for a review. We will ' +
+                                    'show who is coming up below, if anyone is coming up.'
+                                )
+                            }
+                        )
+                    )
+                ].concat(this.state.itemA.uuid === null ? [] : [
+                    React.createElement(
+                        SmartHeightEased,
+                        {
+                            key: `queue-item-${this.state.itemA.uuid}`,
+                            initialState: 'expanded',
+                            desiredState: this.state.itemA.visible ? 'expanded' : 'closed'
+                        },
+                        React.createElement(
+                            UserTrustQueueItemAjax,
+                            {
+                                uuid: this.state.itemA.uuid,
+                                username: this.state.itemA.username,
+                                reviewAt: this.state.itemA.reviewAt
+                            }
+                        )
+                    )
+                ]).concat(this.state.itemB.uuid === null ? [] : [
+                    React.createElement(
+                        SmartHeightEased,
+                        {
+                            key: `queue-item-${this.state.itemB.uuid}`,
+                            initialState: 'expanded',
+                            desiredState: this.state.itemB.visible ? 'expanded' : 'closed'
+                        },
+                        React.createElement(
+                            UserTrustQueueItemAjax,
+                            {
+                                uuid: this.state.itemB.uuid,
+                                username: this.state.itemB.username,
+                                reviewAt: this.state.itemB.reviewAt
+                            }
+                        )
+                    )
+                ]).concat([
+                    React.createElement(
+                        Button,
+                        {
+                            key: 'reload',
+                            type: 'secondary',
+                            text: 'Reload',
+                            disabled: this.state.reloadDisabled,
+                            onClick: this.reload
+                        }
+                    )
+                ])
+            );
+        }
+
+        componentDidMount() {
+            this.reload(true);
+        }
+
+        setSetAlert(str) {
+            this.setAlert = str;
+        }
+
+        reload(force) {
+            if (!force && this.state.reloadDisabled) { return; }
+
+            let usingItemA = !this.state.itemA.visible;
+
             this.setState((state) => {
                 let newState = Object.assign({}, state);
-                newState.trustViewCounter++;
+                newState.reloadDisabled = true;
+                newState.itemA = Object.assign({}, newState.itemA);
+                newState.itemA.visible = false;
+                newState.itemB = Object.assign({}, newState.itemB);
+                newState.itemB.visible = false;
+                return newState;
+            });
+
+            let handled = false;
+            api_fetch(
+                '/api/trusts/queue?limit=1',
+                AuthHelper.auth({
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                })
+            ).then((resp) => {
+                if (handled) { return; }
+
+                if (!resp.ok) {
+                    handled = true;
+                    this.enableReload();
+                    AlertHelper.createFromResponse('fetch queue', resp).then(this.setAlert);
+                    return;
+                }
+
+                return resp.json();
+            }).then((json) => {
+                if (handled) { return; }
+
+                if (json.queue.length === 0) {
+                    handled = true;
+                    this.setState((state) => {
+                        let newState = Object.assign({}, state);
+                        newState.reloadDisabled = false;
+                        newState.queueEmpty = true;
+                        return newState;
+                    });
+                    return;
+                }
+
+                handled = true;
+                let item = {
+                    uuid: json.queue[0].uuid,
+                    username: json.queue[0].username,
+                    reviewAt: new Date(json.queue[0].review_at * 1000)
+                };
+
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.reloadDisabled = false;
+                    newState.queueEmpty = item.reviewAt > new Date();
+                    let toUpdate = null;
+                    if (usingItemA) {
+                        newState.itemA = Object.assign({}, newState.itemA);
+                        toUpdate = newState.itemA;
+                    } else {
+                        newState.itemB = Object.assign({}, newState.itemB);
+                        toUpdate = newState.itemB;
+                    }
+                    toUpdate.visible = true;
+                    toUpdate.uuid = item.uuid;
+                    toUpdate.username = item.username;
+                    toUpdate.reviewAt = item.reviewAt;
+                    return newState;
+                });
+            }).catch(() => {
+                if (handled) { return; }
+
+                handled = true;
+                this.enableReload();
+                this.setAlert(AlertHelper.createFetchError());
+            });
+        }
+
+        enableReload() {
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.reloadDisabled = false;
                 return newState;
             });
         }
-    };
+    }
 
     return [
         UserCommentsOnUserAndPostCommentWithAjax,
         UserTrustViewWithAjax,
         UserTrustLookupWithAjax,
-        UserTrustControlsWithAjax
+        UserTrustControlsWithAjax,
+        UserTrustNextQueueItemAjax
     ];
 })();

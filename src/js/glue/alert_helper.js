@@ -175,9 +175,9 @@ const AlertHelper = (() => {
                             {key: 'p1'},
                             'The request was successfully sent to the server but the ' +
                             'server rejected the request on the grounds that although ' +
-                            'we sent credentials, our account does not have permission ' +
-                            'to perform the given action. If you believe you do have ' +
-                            'permission you may just need to log out and log back in.'
+                            'we sent credentials, they do not grant permission to perform ' +
+                            'the given action. If you believe you do have permission you ' +
+                            'may just need to log out and log back in.'
                         ),
                         React.createElement(
                             'p',
@@ -532,6 +532,17 @@ const AlertHelper = (() => {
                                     '.'
                                 )
                             ]
+                        ),
+                        React.createElement(
+                            'p',
+                            {key: 'p3'},
+                            (
+                                'Some very sensitive actions, such as claiming an account or ' +
+                                'changing your password, have additional limitations that are ' +
+                                'to reduce the effectiveness of certain brute force attacks. ' +
+                                'There is, in general, no way around these restrictions except ' +
+                                'directly through the site administrator.'
+                            )
                         )
                     ]
                 )

@@ -8,7 +8,7 @@
 
     ReactDOM.render(
         [
-            React.createElement(NavbarLoader, {key: 'nav', currentPage: 'trusts'}),
+            React.createElement(NavbarLoader, {key: 'nav', currentPage: 'lookup-trust'}),
             React.createElement('div', {key: 'main', className: 'main'}, [
                 React.createElement(
                     PermissionRequired,

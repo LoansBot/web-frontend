@@ -4,8 +4,13 @@ const [ClaimForm, ClaimFormWithLogic] = (function() {
      * logic, just exposes the necessary listeners and handles the client-side
      * validations.
      *
+     * @param {string} username The username of the account being claimed
      * @param {function} passwordQuery A function which we call with a function
      *   that returns the password that the user has put in.
+     * @param {function} tokenGet A function which we call with a function which
+     *   will return the current hCaptcha token.
+     * @param {function} tokenClear A function which we call with a function which
+     *   will clear the current hCaptcha token.
      * @param {function} submit A function which we call when this form is
      *   submitted.
      */
@@ -17,9 +22,15 @@ const [ClaimForm, ClaimFormWithLogic] = (function() {
                 showPassword: false,
                 disabled: true
             };
+
             this.showPasswordRef = React.createRef();
             this.formRef = React.createRef();
+
             this.passwordQuery = null;
+
+            this.setPasswordQuery = this.setPasswordQuery.bind(this);
+            this.onPasswordChanged = this.onPasswordChanged.bind(this);
+            this.toggleShowPassword = this.toggleShowPassword.bind(this);
         }
 
         render() {
@@ -27,33 +38,55 @@ const [ClaimForm, ClaimFormWithLogic] = (function() {
                 'form',
                 {ref: this.formRef},
                 [
-                    React.createElement(FormElement, {
-                        key: 'password', component: TextInput, labelText: 'Password',
-                        componentArgs: {
-                            type: this.state.showPassword ? 'text' : 'password',
-                            textQuery: ((qry) => {
-                                if(this.props.passwordQuery) {
-                                    this.props.passwordQuery(qry);
-                                }
-                                this.passwordQuery = qry;
-                            }).bind(this),
-                            textChanged: this.onPasswordChanged.bind(this)
-                        }
-                    }),
-                    React.createElement(Button, {
-                        key: 'submit', type: 'submit', style: 'primary', text: 'Claim Account',
-                        disabled: this.state.disabled,
-                        onClick: ((e) => {
-                            if(this.props.submit) {
-                                this.props.submit(e);
+                    React.createElement(
+                        'h3',
+                        {key: 'title'},
+                        `Claim /u/${this.props.username}`
+                    ),
+                    React.createElement(
+                        FormElement,
+                        {
+                            key: 'password',
+                            labelText: 'Password',
+                        },
+                        React.createElement(
+                            TextInput,
+                            {
+                                type: this.state.showPassword ? 'text' : 'password',
+                                textQuery: this.setPasswordQuery,
+                                textChanged: this.onPasswordChanged
                             }
-                        }).bind(this)
-                    }),
-                    React.createElement(Button, {
-                        key: 'toggle-pass', type: 'button', style: 'secondary',
-                        text: (this.state.showPassword ? 'Hide Password' : 'Show Password'),
-                        onClick: this.toggleShowPassword.bind(this)
-                    })
+                        )
+                    ),
+                    React.createElement(
+                        Captcha,
+                        {
+                            key: 'captcha',
+                            tokenGet: this.props.tokenGet,
+                            tokenClear: this.props.tokenClear
+                        }
+                    ),
+                    React.createElement(
+                        Button,
+                        {
+                            key: 'submit',
+                            type: 'submit',
+                            style: 'primary',
+                            text: 'Claim Account',
+                            disabled: this.state.disabled,
+                            onClick: this.props.submit
+                        }
+                    ),
+                    React.createElement(
+                        Button,
+                        {
+                            key: 'toggle-pass',
+                            type: 'button',
+                            style: 'secondary',
+                            text: (this.state.showPassword ? 'Hide Password' : 'Show Password'),
+                            onClick: this.toggleShowPassword
+                        }
+                    )
                 ]
             )
         }
@@ -62,6 +95,13 @@ const [ClaimForm, ClaimFormWithLogic] = (function() {
             if(this.submit) {
                 this.formRef.current.addEventListener('submit', ((e) => this.props.submit(e)).bind(this));
             }
+        }
+
+        setPasswordQuery(qry) {
+            if(this.props.passwordQuery) {
+                this.props.passwordQuery(qry);
+            }
+            this.passwordQuery = qry;
         }
 
         onPasswordChanged() {
@@ -82,7 +122,10 @@ const [ClaimForm, ClaimFormWithLogic] = (function() {
 
     ClaimForm.propTypes = {
         passwordQuery: PropTypes.func,
-        submit: PropTypes.func
+        tokenGet: PropTypes.func,
+        tokenClear: PropTypes.func,
+        submit: PropTypes.func,
+        username: PropTypes.string.isRequired
     };
 
     /**
@@ -98,57 +141,131 @@ const [ClaimForm, ClaimFormWithLogic] = (function() {
         constructor(props) {
             super(props);
             this.state = {
-                alert: null,
-                disabled: false
+                disabled: false,
+                username: '[loading]'
             };
+
             this.getPassword = null;
+            this.setAlert = null;
+            this.getToken = null;
+            this.clearToken = null;
+
+            this.setGetPassword = this.setGetPassword.bind(this);
+            this.setSetAlert = this.setSetAlert.bind(this);
+            this.setGetToken = this.setGetToken.bind(this);
+            this.setClearToken = this.setClearToken.bind(this);
+            this.onSubmit = this.onSubmit.bind(this);
         }
 
         render() {
             return React.createElement(
-                React.Fragment,
-                null,
-                (this.state.alert ? [
-                    React.createElement(
-                        Alert,
-                        {
-                            key: 'alert',
-                            title: this.state.alert.title,
-                            type: this.state.alert.type,
-                            text: this.state.alert.text
-                        }
-                    )
-                ] : []).concat([
-                    React.createElement(
-                        ClaimForm,
-                        {
-                            key: 'claim-form',
-                            passwordQuery: ((gtr) => this.getPassword = gtr).bind(this),
-                            submit: this.onSubmit.bind(this),
-                            disabled: this.state.disabled
-                        }
-                    )
-                ])
+                Alertable,
+                {
+                    alertSet: this.setSetAlert
+                },
+                React.createElement(
+                    ClaimForm,
+                    {
+                        key: 'claim-form',
+                        username: this.state.username,
+                        passwordQuery: this.setGetPassword,
+                        tokenGet: this.setGetToken,
+                        tokenClear: this.setClearToken,
+                        submit: this.onSubmit,
+                        disabled: this.state.disabled
+                    }
+                )
             );
+        }
+
+        componentDidMount() {
+            this.getUsername();
+        }
+
+        getUsername() {
+            let handled = false;
+            api_fetch(
+                `/api/users/${this.props.userId}`,
+                AuthHelper.auth()
+            ).then((resp) => {
+                if (handled) { return; }
+
+                if (!resp.ok) {
+                    handled = true;
+                    AlertHelper.createFromResponse('fetch username', resp).then(this.setAlert);
+                    return;
+                }
+
+                return resp.json();
+            }).then((json) => {
+                if (handled) { return; }
+
+                handled = true;
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.username = json.username;
+                    return newState;
+                });
+            }).catch(() => {
+                if (handled) { return; }
+
+                handled = true;
+                this.setAlert(AlertHelper.createFetchError());
+            });
+        }
+
+        setSetAlert(str) {
+            this.setAlert = str;
+        }
+
+        setGetPassword(gtr) {
+            this.getPassword = gtr;
+        }
+
+        setGetToken(gtr) {
+            this.getToken = gtr;
+        }
+
+        setClearToken(clr) {
+            this.clearToken = clr;
         }
 
         onSubmit(e) {
             e.preventDefault();
             e.stopPropagation();
 
-            console.log(`Claiming the account for user ${this.props.userId}..`);
-            this.setState({
-                alert: {
-                    type: 'info',
-                    title: 'Claiming account..',
-                    text: (
-                        'A request is being sent to the server to claim that ' +
-                        'account.'
+            let captchaToken = this.getToken();
+            if (!captchaToken) {
+                this.setAlert(
+                    React.createElement(
+                        Alert,
+                        {
+                            type: 'info',
+                            title: 'Captcha incomplete'
+                        },
+                        'Please fill out the captcha to proceed'
                     )
-                },
-                disabled: true
-            });
+                );
+               // return;
+            }
 
+            console.log(
+                `Claiming the account for user ${this.props.userId} (${this.state.username})..`
+            );
+
+            this.setAlert(
+                React.createElement(
+                    Alert,
+                    {
+                        type: 'info',
+                        title: 'Claiming account..'
+                    },
+                    `A request is being sent to the server to claim /u/${this.state.username}`
+                )
+            )
+            this.setState({disabled: true});
+
+            let handled = false;
             api_fetch(
                 '/api/users/claim',
                 {
@@ -159,60 +276,43 @@ const [ClaimForm, ClaimFormWithLogic] = (function() {
                         user_id: this.props.userId,
                         claim_token: this.props.token,
                         password: this.getPassword(),
-                        recaptcha_token: 'todo'
+                        recaptcha_token: captchaToken
                     })
                 }
             ).then((resp) => {
-                if(resp.status === 429) {
-                    console.log('Got ratelimited while using the claim token');
-                    return Promise.reject(
-                        'The server ratelimited the request. That means there have ' +
-                        'been too many attempts to claim that account recently. Wait ' +
-                        'a few minutes and try again. If it does not work, please ' +
-                        'contact the moderators of /r/borrow by sending a pm from ' +
-                        'the reddit account you are trying to claim.'
-                    );
-                }else if(resp.status === 400) {
-                    console.log(`Server rejected the arguments, probably the password`);
-                    return Promise.reject(
-                        'The server rejected the password. Make sure it is ' +
-                        'between 6 and 256 characters.'
-                    );
-                }else if (resp.status < 200 || resp.status > 299) {
-                    console.log(`Server gave unexpected response while using claim token: ${resp.status}`);
-                    return Promise.reject(resp.status + ': ' + resp.statusText);
-                }else {
-                    return resp;
+                if (handled) { return; }
+
+                if (!resp.ok) {
+                    handled = true;
+                    AlertHelper.createFromResponse('claim account', resp).then(this.setAlert);
                 }
             }).then((() => {
-                this.setState(
-                    {
-                        alert: {
+                if (handled) { return; }
+
+                this.setAlert(
+                    React.createElement(
+                        Alert,
+                        {
                             type: 'success',
                             title: 'Account Claimed',
-                            text: (
-                                'Your account has been claimed. You are going to ' +
-                                'be redirected to the login screen in 10 seconds, ' +
-                                'but feel free to navigate there earlier.'
-                            )
                         },
-                        disabled: true
-                    }
+                        'Your account has been claimed. You are going to ' +
+                        'be redirected to the login screen in 10 seconds, ' +
+                        'but feel free to navigate there earlier.'
+                    )
                 );
+
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.disabled = true;
+                    return newState;
+                });
+
                 setTimeout(function() { window.location.href = '/login.html' }, 10000);
             }).bind(this)).catch(((error) => {
-                console.log(error);
+                if (handled) { return; }
 
-                this.setState(
-                    {
-                        alert: {
-                            type: 'error',
-                            title: 'Signup Failed',
-                            text: error.toString()
-                        },
-                        disabled: true
-                    }
-                );
+                this.setAlert(AlertHelper.createFetchError());
             }).bind(this));
         }
     }
