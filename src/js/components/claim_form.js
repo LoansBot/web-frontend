@@ -276,7 +276,7 @@ const [ClaimForm, ClaimFormWithLogic] = (function() {
                         user_id: this.props.userId,
                         claim_token: this.props.token,
                         password: this.getPassword(),
-                        recaptcha_token: captchaToken
+                        captcha: captcha
                     })
                 }
             ).then((resp) => {
