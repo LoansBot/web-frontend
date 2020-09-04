@@ -1,4 +1,4 @@
-const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
+const [UserAjax, UserSelectFormWithAjax, UserSelectFormWithAjaxAndView] = (function() {
     /**
      * Shows a description of a particular permission alongside some controls
      * for that permission.
@@ -3490,7 +3490,7 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
                     newState.alert = {
                         title: 'User not found',
                         type: 'info',
-                        text: 'Enter a username above to view settings'
+                        text: 'Enter a username above or select one of the suggestions.'
                     };
                     newState.alertState = 'expanded';
                     return newState;
@@ -3659,5 +3659,5 @@ const [UserAjax, UserSelectFormWithAjaxAndView] = (function() {
         }
     };
 
-    return [UserAjax, UserSelectFormWithAjaxAndView];
+    return [UserAjax, UserSelectFormWithAjax, UserSelectFormWithAjaxAndView];
 })();

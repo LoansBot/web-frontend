@@ -269,7 +269,8 @@ const LogFeedWithControlsAndLogic = (function() {
                 lastSeenId: null,
                 items: [],
                 noSearchAutoWrap: false,
-                tailsRemaining: 0
+                tailsRemaining: 0,
+                justTailed: false
             }
             this.tailQueued = false;
             this.tailSet = null;
@@ -284,6 +285,31 @@ const LogFeedWithControlsAndLogic = (function() {
                 React.Fragment,
                 null,
                 [
+                    React.createElement(
+                        SmartHeightEased,
+                        {
+                            key: 'auto-refresh',
+                            initialState: 'closed',
+                            desiredState: this.state.tail ? 'expanded' : 'closed'
+                        },
+                        React.createElement(
+                            'div',
+                            null,
+                            [
+                                React.createElement(
+                                    React.Fragment,
+                                    {key: 'text'},
+                                    'Tailing..'
+                                )
+                            ].concat(this.state.justTailed ? [
+                                React.createElement(
+                                    React.Fragment,
+                                    {key: 'extra-dot'},
+                                    '.'
+                                )
+                            ] : [])
+                        )
+                    ),
                     React.createElement(
                         LogFeed,
                         {key: 'feed', items: this.state.items}
@@ -356,10 +382,26 @@ const LogFeedWithControlsAndLogic = (function() {
                     this.tailSet(false);
                 }else {
                     this.tailQueued = true;
-                    setTimeout((function() {
-                        this.tailQueued = false;
-                        this.updateLogs(true);
-                    }).bind(this), this.state.filterText.length == 0 ? 5000 : 60000);
+                    setTimeout(
+                        (() => {
+                            this.tailQueued = false;
+                            this.updateLogs(true);
+                            this.setState((state) => {
+                                let newState = Object.assign({}, state);
+                                newState.justTailed = true;
+                                return newState;
+                            });
+
+                            setTimeout((() => {
+                                this.setState(((state) => {
+                                    let newState = Object.assign({}, state);
+                                    newState.justTailed = false;
+                                    return newState;
+                                }).bind(this));
+                            }).bind(this), 1000);
+                        }).bind(this),
+                        this.state.filterText.length == 0 ? 5000 : 60000
+                    );
                 }
             }
         }

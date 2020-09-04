@@ -22,7 +22,8 @@
                     {key: 'edit', permissions: ['edit_loans']},
                     React.createElement(EditLoanFormWithLogic, {loanId: loanId})
                 )
-            ])
+            ]),
+            React.createElement(Footer, {key: 'footer'})
         ],
         document.getElementById('content')
     );

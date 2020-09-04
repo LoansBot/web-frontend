@@ -4,6 +4,7 @@ const TextArea = (function() {
      * input and setting the value of the text input.
      *
      * @param {string} text The text to initialize the text input with
+     * @param {number} rows The number of rows to initialize the text area with
      * @param {bool} disabled True if editing is disabled, false otherwise
      * @param {function} textQuery A function which we call after mounting
      *   with a function which will return the current text on this text input.
@@ -19,6 +20,7 @@ const TextArea = (function() {
         constructor(props) {
             super(props);
             this.textareaRef = React.createRef();
+            this.renderedText = null;
         }
 
         render() {
@@ -28,7 +30,8 @@ const TextArea = (function() {
                     ref: this.textareaRef,
                     className: 'textarea',
                     defaultValue: this.props.text,
-                    disabled: this.props.disabled
+                    disabled: this.props.disabled,
+                    rows: this.props.rows
                 }
             );
         }
@@ -54,14 +57,16 @@ const TextArea = (function() {
         }
 
         componentDidUpdate() {
-            if (this.props.text) {
+            if (this.props.text && this.props.text != this.renderedText) {
                 this.textareaRef.current.value = this.props.text;
+                this.renderedText = this.props.text;
             }
         }
     }
 
     TextArea.propTypes = {
         text: PropTypes.string,
+        rows: PropTypes.number,
         disabled: PropTypes.bool,
         textQuery: PropTypes.func,
         textSet: PropTypes.func,

@@ -9,7 +9,8 @@ ReactDOM.render(
         ),
         React.createElement('div',
             {key: 'padding', style: { height: '100vh' }}
-        )
+        ),
+        React.createElement(Footer, {key: 'footer'})
     ]),
     document.getElementById('content')
 );

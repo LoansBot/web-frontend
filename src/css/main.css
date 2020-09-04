@@ -14,3 +14,17 @@ p {
     padding-left: 6px;
     padding-right: 6px;
 }
+
+.footer {
+    width: 100%;
+    background-color: lightgray;
+    height: 2rem;
+    color: darkslategray;
+    text-align: center;
+}
+
+.footer-fixed {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+}

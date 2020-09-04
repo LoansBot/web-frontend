@@ -10,7 +10,8 @@
                     key: 'signup-form',
                     forgotVariant: forgotPasswordVariant
                 })
-            ])
+            ]),
+            React.createElement(Footer, {key: 'footer'})
         ]),
         document.getElementById('content')
     );

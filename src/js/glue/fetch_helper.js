@@ -14,23 +14,25 @@ const api_fetch = (function() {
 
         return fetch(url, kwargs).catch((e) => {
             if (e.message === 'Failed to fetch') {
-                if (!kwargs || !kwargs.headers || kwargs.headers.get('Cache-Control') !== 'no-cache' || kwargs.headers.get('Pragma') !== 'no-cache') {
-                    if (kwargs) {
-                        kwargs = Object.assign({}, kwargs);
-                    } else {
-                        kwargs = {};
-                    }
-
-                    if (kwargs.headers !== null && kwargs.headers !== undefined) {
-                        kwargs.headers = new Headers(kwargs.headers);
-                    } else {
-                        kwargs.headers = new Headers();
-                    }
-
-                    kwargs.headers.set('Cache-Control', 'no-cache');
-                    kwargs.headers.set('Pragma', 'no-cache');
-                    return api_fetch(url, kwargs);
+                if (kwargs) {
+                    kwargs = Object.assign({}, kwargs);
+                } else {
+                    kwargs = {};
                 }
+
+                if (kwargs.headers !== null && kwargs.headers !== undefined) {
+                    kwargs.headers = new Headers(kwargs.headers);
+                } else {
+                    kwargs.headers = new Headers();
+                }
+
+                if (kwargs.headers.get('Cache-Control') === 'no-cache' && kwargs.headers.get('Pragma') === 'no-cache') {
+                    return Promise.reject(e);
+                }
+
+                kwargs.headers.set('Cache-Control', 'no-cache');
+                kwargs.headers.set('Pragma', 'no-cache');
+                return api_fetch(url, kwargs);
             }
             return Promise.reject(e);
         });

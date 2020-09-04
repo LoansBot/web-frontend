@@ -33,7 +33,8 @@ ReactDOM.render(
             }),
             React.createElement('div',
                 {key: 'padding', style: { height: '35vh' }}
-            )
+            ),
+            React.createElement(Footer, {key: 'footer'})
         ])
     ]),
     document.getElementById('content')

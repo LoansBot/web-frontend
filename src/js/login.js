@@ -5,7 +5,8 @@ ReactDOM.render(
             React.createElement(LoginFormWithLogic, {
                 key: 'login-form'
             })
-        ])
+        ]),
+        React.createElement(Footer, {key: 'footer'})
     ]),
     document.getElementById('content')
 );
