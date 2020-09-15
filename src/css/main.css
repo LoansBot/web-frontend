@@ -8,6 +8,16 @@ p {
     font-size: 14pt;
     line-height: 150%;
 }
+
+.hljs {
+    background: #e0e0e0;
+    border-left-style: solid;
+    border-left-width: 3px;
+    border-left-color: #333;
+    font-size: large;
+}
+
+
 .main {
     max-width: 540px;
     margin: 0 auto;

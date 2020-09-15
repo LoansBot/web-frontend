@@ -3448,6 +3448,7 @@ const [UserAjax, UserSelectFormWithAjax, UserSelectFormWithAjaxAndView] = (funct
                         AutoCompleter,
                         {
                             key: 'user-input',
+                            labelText: 'Username',
                             valueChanged: this.usernameChanged.bind(this),
                             suggestionsRequest: this.fetchSuggestions.bind(this)
                         }

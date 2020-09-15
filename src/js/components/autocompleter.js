@@ -233,6 +233,7 @@ const AutoCompleter = (() => {
      * Shows a text field which allows the user to input text and see
      * suggestions.
      *
+     * @param {string} labelText The label text for the form field
      * @param {function} valueQuery A function which we call with a function
      *   which accepts no arguments and returns the current value within the
      *   text input.
@@ -245,6 +246,7 @@ const AutoCompleter = (() => {
      *   arguments - the current value in the input and a function which acts
      *   as a callback. The function should be called with a list of predictive
      *   terms based on the value it was passed.
+     * @param {bool} disabled If true then editing is disabled
      */
     class AutoCompleter extends React.Component {
         constructor(props) {
@@ -297,26 +299,28 @@ const AutoCompleter = (() => {
                         FormElement,
                         {
                             key: 'input',
-                            labelText: 'Username',
-                            component: TextInput,
-                            componentArgs: {
-                                key: 'inputinner',
+                            labelText: this.props.labelText,
+                        },
+                        React.createElement(
+                            TextInput,
+                            {
                                 type: 'text',
                                 textQuery: this.setTextQuery,
                                 textChanged: this.valueChanged,
                                 textSet: this.setTextSet,
                                 focus: this.setFocusInput,
                                 focusChanged: this.inputFocusChanged,
-                                focusGet: this.setFocusInputGet
+                                focusGet: this.setFocusInputGet,
+                                disabled: this.props.disabled
                             }
-                        },
+                        )
                     ),
                     React.createElement(
                         SmartHeightEased,
                         {
                             key: 'suggestions',
                             initialState: 'closed',
-                            desiredState: this.state.suggestionsState
+                            desiredState: this.props.disabled ? 'closed' : this.state.suggestionsState
                         },
                         React.createElement(
                             AutoCompleteSuggestionList,
@@ -503,10 +507,12 @@ const AutoCompleter = (() => {
     };
 
     AutoCompleter.propTypes = {
+        labelText: PropTypes.string.isRequired,
         valueQuery: PropTypes.func,
         valueChanged: PropTypes.func,
         valueSet: PropTypes.func,
-        suggestionsRequest: PropTypes.func
+        suggestionsRequest: PropTypes.func,
+        disabled: PropTypes.bool
     };
 
     return AutoCompleter;

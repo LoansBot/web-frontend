@@ -5,11 +5,12 @@ const DateTimePicker = (function() {
      *
      * @param {Date} initialDatetime The datettime that is initially selected.
      * @param {func} datetimeQuery A function which we call with a function which
-     *   will return the currently selected time
+     *   will return the currently selected date or null if an invalid date is
+     *   set.
      * @param {func} datetimeSet A function which we call with a function that
-     *   accepts an option key and sets the current option to that key.
+     *   accepts a Date and sets the value in the datetime picker to that date.
      * @param {func} datetimeChanged A function which is called with the new
-     *   option key whenever the option on this dropdown changes.
+     *   datetime whenever the datetime changes.
      * @param {bool} disabled True if this dropdown is disabled, false or null
      *   otherwise
      */
