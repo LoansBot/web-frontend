@@ -3963,7 +3963,29 @@ const [EndpointSelectFormWithAjaxAndView] = (() => {
         onDelete() {
             if (!this.state.deletePartTwoComplete) { return; }
 
-            console.log('delete!');
+            let handled = false;
+            api_fetch(
+                `/api/endpoints/${this.props.slug}`,
+                AuthHelper.auth({
+                    method: 'DELETE'
+                })
+            ).then((resp) => {
+                if (handled) { return; }
+
+                if (!resp.ok) {
+                    handled = true;
+                    AlertHelper.createFromResponse('delete endpoint', resp).then(this.setAlert);
+                    return;
+                }
+
+                handled = true;
+                this.load(true);
+            }).catch(() => {
+                if (handled) { return; }
+
+                handled = true;
+                this.setAlert(AlertHelper.createFetchError());
+            })
         }
     }
 
