@@ -9,6 +9,22 @@
                 React.createElement(
                     EndpointSelectFormWithAjaxAndView,
                     {key:'test', slug: endpointSlugParam}
+                ),
+                React.createElement(
+                    PermissionRequired,
+                    {key: 'add-endpoint', permissions: ['create-endpoint']},
+                    React.createElement(
+                        ToggledElement,
+                        {
+                            labelText: 'Show Add Endpoint Form'
+                        },
+                        React.createElement(
+                            EndpointAddFormWithAjax,
+                            {
+                                onAdd: ((slug) => window.location = `/endpoints.html?slug=${slug}`)
+                            }
+                        )
+                    )
                 )
             ]),
             React.createElement(Footer, {key: 'footer'})

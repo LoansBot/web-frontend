@@ -1,4 +1,4 @@
-const [EndpointSelectFormWithAjaxAndView] = (() => {
+const [EndpointSelectFormWithAjaxAndView, EndpointAddFormWithAjax] = (() => {
     /**
      * Describes a view for a particular endpoint parameter, which optionally
      * shows a "show children" button and an "show description" button. It's
@@ -1125,6 +1125,7 @@ const [EndpointSelectFormWithAjaxAndView] = (() => {
      * @param {string} deprecationReasonMarkdown The current deprecation reason
      * @param {Date} deprecatedOn The current deprecated date
      * @param {Date} sunsetsOn The current sunset date
+     * @param {string} cta The text on the final button. Defaults to "Submit Edit"
      * @param {func} alertSet A function which sets the submit button alert, as
      *   if by Alertable
      * @param {func} onSubmit A function called when the user submits an edit;
@@ -1308,7 +1309,7 @@ const [EndpointSelectFormWithAjaxAndView] = (() => {
                                 React.createElement(
                                     DatePicker,
                                     {
-                                        initialDate: this.props.deprecatedOn || new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()),
+                                        initialDate: this.props.deprecatedOn || getCurrentDate(),
                                         dateQuery: this.setGetDeprecatedOn,
                                         dateChanged: this.onDeprecatedOnChanged,
                                         disabled: this.state.disabled
@@ -1383,7 +1384,7 @@ const [EndpointSelectFormWithAjaxAndView] = (() => {
                                 type: 'button',
                                 type: 'primary',
                                 disabled: this.state.disabled || !this.state.valid || !this.state.changed,
-                                text: 'Submit Edit',
+                                text: this.props.cta || 'Submit Edit',
                                 onClick: this.onSubmit
                             }
                         )
@@ -1667,7 +1668,7 @@ const [EndpointSelectFormWithAjaxAndView] = (() => {
     }
 
     /**
-     * Describes a form for editing an endpoint which will also manage actually
+     * Shows a form for editing an endpoint which will also manage actually
      * performing the edit with ajax. Parameters are analagous to those defined
      * in EndpointView.
      *
@@ -1729,8 +1730,8 @@ const [EndpointSelectFormWithAjaxAndView] = (() => {
                         verb: newVerb,
                         description_markdown: newDescriptionMarkdown,
                         deprecation_reason_markdown: newDeprecationReasonMarkdown,
-                        deprecated_on: newDeprecatedOn === null ? null : `${newDeprecatedOn.getFullYear()}-${newDeprecatedOn.getMonth() + 1}-${newDeprecatedOn.getDate()}`,
-                        sunsets_on: newSunsetsOn === null ? null : `${newSunsetsOn.getFullYear()}-${newSunsetsOn.getMonth() + 1}-${newSunsetsOn.getDate()}`
+                        deprecated_on: formatDateISO8601(newDeprecatedOn),
+                        sunsets_on: formatDateISO8601(newSunsetsOn)
                     })
                 })
             ).then((resp) => {
@@ -1744,6 +1745,127 @@ const [EndpointSelectFormWithAjaxAndView] = (() => {
 
                 handled = true;
                 if (this.props.onEdit) { this.props.onEdit(); }
+            }).catch(() => {
+                if (handled) { return; }
+
+                handled = true;
+                this.setAlert(AlertHelper.createFetchError());
+            });
+        }
+    }
+
+    /**
+     * Shows a form for adding an endpoint which will also actually create the
+     * endpoint with ajax.
+     *
+     * @param {func} onAdd A function we call with the slug of the endpoint that
+     *   was just created when an endpoint is added.
+     */
+    class EndpointAddFormWithAjax extends React.Component {
+        constructor(props) {
+            super(props);
+
+            this.setAlert = null;
+
+            this.setSetAlert = this.setSetAlert.bind(this);
+            this.onSubmit = this.onSubmit.bind(this);
+        }
+
+        render() {
+            return React.createElement(
+                EndpointEditForm,
+                {
+                    slugEditable: true,
+                    cta: 'Add Endpoint',
+                    alertSet: this.setSetAlert,
+                    onSubmit: this.onSubmit
+                }
+            );
+        }
+
+        setSetAlert(str) {
+            this.setAlert = str;
+        }
+
+        onSubmit(slug, path, verb, descMarkdown, deprReasonMarkdown, deprOn, sunsOn) {
+            let handled = false;
+
+            api_fetch(
+                `/api/endpoints/${slug}`,
+                AuthHelper.auth({
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                })
+            ).then((resp) => {
+                if (handled) { return; }
+
+                if (resp.ok) {
+                    handled = true;
+                    this.setAlert(
+                        React.createElement(
+                            Alert,
+                            {
+                                title: 'Endpoint already exists',
+                                text: (
+                                    'An endpoint with this slug already exists. ' +
+                                    'If you want to edit the endpoint, use the edit ' +
+                                    'form.'
+                                ),
+                                type: 'warning'
+                            }
+                        )
+                    );
+                    return;
+                }
+
+                if (resp.status !== 404) {
+                    handled = true;
+                    AlertHelper.createFromResponse('verify unique slug', resp).then(this.setAlert);
+                    return;
+                }
+
+                return api_fetch(
+                    `/api/endpoints/${slug}`,
+                    AuthHelper.auth({
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            path: path,
+                            verb: verb,
+                            description_markdown: descMarkdown,
+                            deprecation_reason_markdown: deprReasonMarkdown,
+                            deprecated_on: formatDateISO8601(deprOn),
+                            sunsets_on: formatDateISO8601(sunsOn)
+                        })
+                    })
+                );
+            }).then((resp) => {
+                if (handled) { return; }
+
+                if (!resp.ok) {
+                    handled = true;
+                    AlertHelper.createFromResponse('create endpoint', resp).then(this.setAlert);
+                    return;
+                }
+
+                return api_fetch(
+                    `/api/endpoints/${slug}`,
+                    AuthHelper.auth({
+                        headers: {
+                            'Cache-Control': 'no-cache',
+                            'Pragma': 'no-cache'
+                        }
+                    })
+                )
+            }).then((resp) => {
+                if (handled) { return; }
+
+                handled = true;
+                if (this.props.onAdd) { this.props.onAdd(slug); }
             }).catch(() => {
                 if (handled) { return; }
 
@@ -3481,9 +3603,6 @@ const [EndpointSelectFormWithAjaxAndView] = (() => {
         onEdit: PropTypes.func
     };
 
-    /* TODO: actually show EndpointEditParamFormWithAjax in EndpointViewWithAJax
-     * when editing = true */
-
     /**
      * Renders an endpoint based on its slug. This will show the edit form if
      * the logged in user has permission to do so. Handles networking the get
@@ -4277,5 +4396,5 @@ const [EndpointSelectFormWithAjaxAndView] = (() => {
         slug: PropTypes.string
     };
 
-    return [EndpointSelectFormWithAjaxAndView];
+    return [EndpointSelectFormWithAjaxAndView, EndpointAddFormWithAjax];
 })();
