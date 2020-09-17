@@ -4,9 +4,23 @@ body {
     margin: 0 0;
 }
 
-p {
+p, ul, ol {
     font-size: 14pt;
     line-height: 150%;
+
+}
+
+li {
+    margin-bottom: 0.25em;
+}
+
+code {
+    background: #ececec;
+    padding: 0px 0.25em;
+    box-shadow: 0 0 1px 0px black;
+    display: inline-block;
+    box-sizing: border-box;
+    margin: 0 0.15em;
 }
 
 .hljs {
@@ -15,6 +29,7 @@ p {
     border-left-width: 3px;
     border-left-color: #333;
     font-size: large;
+    padding: .5em;
 }
 
 
