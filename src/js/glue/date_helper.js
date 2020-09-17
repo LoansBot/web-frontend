@@ -4,6 +4,7 @@ const [formatDateISO8601, getCurrentDate] = (() => {
      * iso-8601 date time string. Requires string_helper.js
      *
      * @param {Date} date The date to format as a date-only string
+     * @return {string} The iso8601 formatted date or null if date is null.
      */
     function formatDateISO8601(date) {
         if (date === null || date === undefined) {

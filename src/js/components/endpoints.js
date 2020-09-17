@@ -446,9 +446,43 @@ const [EndpointSelectFormWithAjaxAndView, EndpointAddFormWithAjax] = (() => {
                 ? !!props.deprecationReasonShown : true
             );
 
+            this.pathParams = this.props.params.filter((p) => p.location === 'path');
             this.queryParams = this.props.params.filter((p) => p.location === 'query');
             this.headerParams = this.props.params.filter((p) => p.location === 'header');
             this.bodyParams = this.props.params.filter((p) => p.location === 'body');
+
+            this.pathParamSetAlerts = {};
+
+            this.pathParamSetSetAlerts = Object.fromEntries(
+                this.pathParams.map((p) => {
+                    return [
+                        p.name,
+                        ((str) => {
+                            this.pathParamSetAlerts[p.name] = str;
+                        }).bind(this)
+                    ];
+                })
+            );
+
+            this.pathParamGetDescs = Object.fromEntries(
+                this.pathParams.map((p) => {
+                    return [
+                        p.name,
+                        (() => {
+                            p.getDescription(this.pathParamSetAlerts[p.name]).then((desc) => {
+                                if (!desc) { return; }
+
+                                this.setState((state) => {
+                                    let newState = Object.assign({}, state);
+                                    newState.expandedPathParamNames = Object.assign({}, newState.expandedPathParamNames);
+                                    newState.expandedPathParamNames[p.name] = desc;
+                                    return newState;
+                                });
+                            });
+                        }).bind(this)
+                    ];
+                })
+            );
 
             this.queryParamSetAlerts = {};
 
@@ -707,6 +741,7 @@ const [EndpointSelectFormWithAjaxAndView, EndpointAddFormWithAjax] = (() => {
             this.state = {
                 expandedAlternatives: new Set(),
                 initializedAlternatives: new Set(),
+                expandedPathParamNames: {},
                 expandedQueryParamNames: {},
                 expandedHeaderParamNames: {},
                 stateOfBody: stateOfBody,
@@ -836,7 +871,30 @@ const [EndpointSelectFormWithAjaxAndView, EndpointAddFormWithAjax] = (() => {
                                 {key: 'header'},
                                 'Parameters'
                             )
-                        ].concat(this.queryParams.length > 0 ? [
+                        ].concat(this.pathParams.length > 0 ? [
+                            React.createElement(
+                                'div',
+                                {className: 'path-params', key: 'path-params'},
+                                [
+                                    React.createElement(
+                                        'h4',
+                                        {key: 'header'},
+                                        'Path Parameters'
+                                    ),
+                                    React.createElement(
+                                        'ul',
+                                        {key: 'ul', className: 'param-list'},
+                                        this.pathParams.map((param) => {
+                                            return this.renderStandardParam(
+                                                param,
+                                                this.state.expandedPathParamNames[param.name],
+                                                this.pathParamGetDescs[param.name]
+                                            );
+                                        })
+                                    )
+                                ]
+                            )
+                        ] : []).concat(this.queryParams.length > 0 ? [
                             React.createElement(
                                 'div',
                                 {className: 'query-params', key: 'query-params'},
@@ -1954,6 +2012,7 @@ const [EndpointSelectFormWithAjaxAndView, EndpointAddFormWithAjax] = (() => {
                             DropDown,
                             {
                                 options: [
+                                    {key: 'path', text: 'Path'},
                                     {key: 'query', text: 'Query'},
                                     {key: 'header', text: 'Header'},
                                     {key: 'body', text: 'Body'}
@@ -2203,8 +2262,8 @@ const [EndpointSelectFormWithAjaxAndView, EndpointAddFormWithAjax] = (() => {
             let errors = [];
 
             let location = this.getLocation();
-            if (!['query', 'header', 'body'].includes(location)) {
-                errors.push('Location should be one of query, header, body');
+            if (!['path', 'query', 'header', 'body'].includes(location)) {
+                errors.push('Location should be one of path, query, header, body');
             }
 
             let pathStr = location !== 'body' ? '' : this.getPath();
