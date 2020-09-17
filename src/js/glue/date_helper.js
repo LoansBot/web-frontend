@@ -6,6 +6,10 @@ const [formatDateISO8601, getCurrentDate] = (() => {
      * @param {Date} date The date to format as a date-only string
      */
     function formatDateISO8601(date) {
+        if (date === null || date === undefined) {
+            return null;
+        }
+
         return (
             lpad(date.getFullYear(), 4, '0')
             + '-' + lpad(date.getMonth() + 1, 2, '0')
