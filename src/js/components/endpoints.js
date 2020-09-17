@@ -954,7 +954,7 @@ const [EndpointSelectFormWithAjaxAndView, EndpointAddFormWithAjax] = (() => {
                 ] : []).concat((this.props.deprecatedOn && this.props.deprecatedOn < now) ? [
                     React.createElement(
                         'div',
-                        {className: 'deprecated'},
+                        {className: 'deprecated', key: 'deprecated'},
                         [
                             React.createElement(
                                 'h3',
