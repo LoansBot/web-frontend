@@ -2081,7 +2081,7 @@ const [UserAjax, UserSelectFormWithAjax, UserSelectFormWithAjaxAndView] = (funct
                                 React.createElement(
                                     'strong',
                                     {key: 'new-value'},
-                                    itm.newValue.toString()
+                                    itm.newValue === null ? 'null' : itm.newValue.toString()
                                 ),
                                 React.createElement(
                                     React.Fragment,
@@ -2241,7 +2241,7 @@ const [UserAjax, UserSelectFormWithAjax, UserSelectFormWithAjaxAndView] = (funct
                 let newState = Object.assign({}, state);
                 newState.history = [];
                 newState.newHistory = [];
-                newState.nextId = null;
+                newState.beforeId = null;
                 newState.haveMore = true;
                 newState.loading = true;
                 newState.alertState = 'closed';
