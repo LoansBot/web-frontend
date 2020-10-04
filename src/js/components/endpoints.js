@@ -1664,7 +1664,7 @@ const [EndpointSelectFormWithAjaxAndView, EndpointAddFormWithAjax] = (() => {
             let changed = (
                 a !== b ||
                 this.getSlug() !== this.props.slug ||
-                this.getPath() !== this.props.path.join('.') ||
+                this.getPath() !== this.props.path ||
                 this.getVerb() !== this.props.verb ||
                 this.getDescriptionMarkdown() !== this.props.descriptionMarkdown ||
                 this.state.deprecated !== !!this.props.deprecatedOn ||
