@@ -1116,7 +1116,7 @@ const [EndpointSelectFormWithAjaxAndView, EndpointAddFormWithAjax] = (() => {
             return React.createElement(
                 EndpointParamView,
                 {
-                    key: 'body-param',
+                    key: `body-param-${param.name}`,
                     name: param.name,
                     varType: param.varType,
                     descriptionMarkdown: state.description,
