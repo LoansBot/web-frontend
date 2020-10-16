@@ -93,11 +93,15 @@ const NavbarLoader = (function() {
         setNotLoggedInState(mounted) {
             let newState = {
                 loading: false,
-                show: ['home', 'loans', [
-                    'Account',
-                    'Open account management secondary navbar',
-                    ['login', 'signup', 'forgot-password']
-                ]],
+                show: [
+                    'home',
+                    'loans', [
+                        'Account',
+                        'Open account management secondary navbar',
+                        ['login', 'signup', 'forgot-password']
+                    ],
+                    'endpoints'
+                ],
                 username: null
             };
             if (mounted) {
@@ -118,7 +122,7 @@ const NavbarLoader = (function() {
             ], [
                 'Tools',
                 'Open available tools secondary navbar',
-                []
+                ['endpoints']
             ]];
             if(perms) {
                 for(var i = 0, len = perms.length; i < len; i++) {
@@ -299,6 +303,13 @@ const NavbarLoader = (function() {
                     ariaLabel: 'Navigate to the page to manage the trust queue',
                     current: current,
                     url: '/trust_queue.html'
+                }
+            } else if (name === 'endpoints') {
+                return {
+                    name: 'API Docs',
+                    ariaLabel: 'Navigate to the page to view API documentaiton',
+                    current: current,
+                    url: '/endpoints.html'
                 }
             }
         }

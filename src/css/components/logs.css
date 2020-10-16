@@ -6,6 +6,9 @@
 
 .log-item {
     word-break: break-all;
+    font-size: 1rem;
+    line-height: 120%;
+    margin-bottom: 0;
 }
 
 .log-item:not(:last-child) {

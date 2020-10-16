@@ -763,6 +763,45 @@ const AlertHelper = (() => {
                 else { resolve(this.createUnknown(status)); }
             });
         }
+
+        /**
+         * Create an alert saying to resolve the given form errors before they
+         * can continue. Helpful when we have some client-side validation to
+         * improve feedback or just have faster feedback.
+         *
+         * @param {array} errors An array of error strings.
+         * @return {React.Component} Null if errors is empty, otherwise an alert
+         *   explaining the form errors that need to be resolved.
+         */
+        createFormErrors(errors) {
+            if (errors.length === 0) { return null; }
+
+            return React.createElement(
+                Alert,
+                {
+                    title: 'Form Error',
+                    type: 'info'
+                },
+                [
+                    React.createElement(
+                        'p',
+                        {key: '1'},
+                        'Resolve the following form errors to continue:'
+                    ),
+                    React.createElement(
+                        'ul',
+                        {key: '2'},
+                        errors.map((err, idx) => {
+                            return React.createElement(
+                                'li',
+                                {key: idx.toString()},
+                                err
+                            );
+                        })
+                    )
+                ]
+            );
+        }
     };
 
     return new AlertHelper();

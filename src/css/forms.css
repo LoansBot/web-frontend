@@ -96,6 +96,17 @@ form {
     border: blue inset 0.16rem;
 }
 
+.date-picker {
+    font-size: larger;
+    width: 100%;
+    padding-bottom: 0.5em;
+    padding-top: 0.5em;
+}
+
+.date-picker:focus {
+    border: blue inset 0.16rem;
+}
+
 .textarea {
     width: 100%;
     box-sizing: border-box;

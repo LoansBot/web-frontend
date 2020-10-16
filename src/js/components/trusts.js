@@ -1370,18 +1370,19 @@ const [
                         (() => {
                             if (this.props.trustStatus === 'good') {
                                 return (
-                                    'As a lender this user appears to be legitimate. There ' +
-                                    'are no active bans or censures against this user and they are not ' +
-                                    'part of an ongoing investigation.'
+                                    'We believe it is more likely than not this user operates with  ' +
+                                    'good faith within /r/borrow.'
                                 );
                             } else if (this.props.trustStatus === 'bad') {
                                 return (
-                                    'As a lender, this user has an ongoing ban, censure, or investigation.'
+                                    'We believe either it is more likely than not this user operates with ' +
+                                    'bad faith within /r/borrow or we believe that it is highly and ' +
+                                    'substantially more likely than not this user operates with bad faith ' +
+                                    'within the community.'
                                 );
                             } else {
                                 return (
-                                    'As a lender, this user is still forming a relationship ' +
-                                    'with the subreddit.'
+                                    'This user is still forming a relationship the subreddit.'
                                 );
                             }
                         })()
@@ -1485,6 +1486,7 @@ const [
                 justSubmitted: false
             };
 
+            this.setStatusSelectedAlert = null;
             this.setReasonAlert = null;
             this.queryStatus = null;
             this.reasonTimeout = null;
@@ -1493,6 +1495,7 @@ const [
             this.setQueryStatus = this.setQueryStatus.bind(this);
             this.statusChanged = this.statusChanged.bind(this);
 
+            this.setSetStatusSelectedAlert = this.setSetStatusSelectedAlert.bind(this);
             this.setSetReasonAlert = this.setSetReasonAlert.bind(this);
             this.setQueryReason = this.setQueryReason.bind(this);
             this.reasonChanged = this.reasonChanged.bind(this);
@@ -1510,24 +1513,31 @@ const [
                 },
                 [
                     React.createElement(
-                        FormElement,
+                        Alertable,
                         {
-                            key: 'status-dropdown',
-                            labelText: 'Trust status'
+                            alertSet: this.setSetStatusSelectedAlert,
+                            key: 'set-status'
                         },
                         React.createElement(
-                            DropDown,
+                            FormElement,
                             {
-                                options: (this.state.statusSelected ? [] : [
-                                    {key: 'unselected', text: 'Select One'}
-                                ]).concat([
-                                    {key: 'unknown', text: 'Unknown'},
-                                    {key: 'good', text: 'Good'},
-                                    {key: 'bad', text: 'Bad'}
-                                ]),
-                                optionQuery: this.setQueryStatus,
-                                optionChanged: this.statusChanged
-                            }
+                                key: 'status-dropdown',
+                                labelText: 'Trust status'
+                            },
+                            React.createElement(
+                                DropDown,
+                                {
+                                    options: (this.state.statusSelected ? [] : [
+                                        {key: 'unselected', text: 'Select One'}
+                                    ]).concat([
+                                        {key: 'unknown', text: 'Unknown'},
+                                        {key: 'good', text: 'Good'},
+                                        {key: 'bad', text: 'Bad'}
+                                    ]),
+                                    optionQuery: this.setQueryStatus,
+                                    optionChanged: this.statusChanged
+                                }
+                            )
                         )
                     ),
                     React.createElement(
@@ -1590,12 +1600,149 @@ const [
         }
 
         statusChanged(newStatus) {
+            if (newStatus === "good") {
+                this.setStatusSelectedAlert(
+                    React.createElement(
+                        Alert,
+                        {
+                            type: 'info',
+                            title: 'Good Standing',
+                        },
+                        [
+                            React.createElement(
+                                'p',
+                                {key: '1'},
+                                [
+                                    React.createElement(
+                                        React.Fragment,
+                                        {key: '1'},
+                                        'As a guideline, a user should be given this standing if ' +
+                                        'there is a '
+                                    ),
+                                    React.createElement(
+                                        'a',
+                                        {
+                                            key: '2',
+                                            href: 'https://en.wikipedia.org/wiki/Burden_of_proof_(law)#Preponderance_of_the_evidence'
+                                        },
+                                        'preponderance of evidence'
+                                    ),
+                                    React.createElement(
+                                        React.Fragment,
+                                        {key: '3'},
+                                        ' that this user is acting with '
+                                    ),
+                                    React.createElement(
+                                        'a',
+                                        {
+                                            key: '4',
+                                            href: 'https://en.wikipedia.org/wiki/Good_faith'
+                                        },
+                                        'good faith'
+                                    ),
+                                    React.createElement(
+                                        React.Fragment,
+                                        {key: '5'},
+                                        ' within the community of real-money subreddits and, in particular, ' +
+                                        '/r/borrow.'
+                                    )
+                                ]
+                            ),
+                            React.createElement(
+                                'p',
+                                {key: '2'},
+                                'In laymans terms, by assigning this status you believe it is more likely ' +
+                                'than not that this user has a sincere intention to be fair, open, and honest.'
+                            )
+                        ]
+                    )
+                );
+            } else if (newStatus === "bad") {
+                this.setStatusSelectedAlert(
+                    React.createElement(
+                        Alert,
+                        {
+                            type: 'info',
+                            title: 'Bad Standing'
+                        },
+                        [
+                            React.createElement(
+                                'p',
+                                {key: '1'},
+                                [
+                                    React.createElement(
+                                        React.Fragment,
+                                        {key: '1'},
+                                        'As a guideline, a user should be given this standing if there ' +
+                                        'is either '
+                                    ),
+                                    React.createElement(
+                                        'a',
+                                        {
+                                            key: '2',
+                                            href: 'https://en.wikipedia.org/wiki/Burden_of_proof_(law)#Clear_and_convincing_evidence'
+                                        },
+                                        'clear and convincing evidence'
+                                    ),
+                                    React.createElement(
+                                        React.Fragment,
+                                        {key: '3'},
+                                        ' that this lender is operating with '
+                                    ),
+                                    React.createElement(
+                                        'a',
+                                        {
+                                            key: '4',
+                                            href: 'https://en.wikipedia.org/wiki/Bad_faith'
+                                        },
+                                        'bad faith'
+                                    ),
+                                    React.createElement(
+                                        React.Fragment,
+                                        {key: '5'},
+                                        ' within the community of real-money subreddits, or there is a '
+                                    ),
+                                    React.createElement(
+                                        'a',
+                                        {
+                                            key: '6',
+                                            href: 'https://en.wikipedia.org/wiki/Burden_of_proof_(law)#Preponderance_of_the_evidence'
+                                        },
+                                        'preponderance of evidence'
+                                    ),
+                                    React.createElement(
+                                        React.Fragment,
+                                        {key: '7'},
+                                        ' that this user is operating with bad faith within our subreddit.'
+                                    )
+                                ]
+                            ),
+                            React.createElement(
+                                'p',
+                                {key: '2'},
+                                'In laymans terms, by assigning this status you either believe that ' +
+                                'it is highly and substantially more likely than not that this user ' +
+                                'has engaged in a sustained form of deception within the community of ' +
+                                'real-money subreddits, or you believe it is more likely than not this ' +
+                                'user has engaged in a sustained form of deception within this subreddit.'
+                            )
+                        ]
+                    )
+                );
+            } else {
+                this.setStatusSelectedAlert();
+            }
+
             if (this.state.statusSelected) { return; }
             this.setState((state) => {
                 let newState = Object.assign({}, state);
                 newState.statusSelected = true;
                 return newState;
             });
+        }
+
+        setSetStatusSelectedAlert(str) {
+            this.setStatusSelectedAlert = str;
         }
 
         setSetReasonAlert(str) {
