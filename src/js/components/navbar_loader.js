@@ -95,6 +95,7 @@ const NavbarLoader = (function() {
                 loading: false,
                 show: [
                     'home',
+                    'loan_stats',
                     'loans', [
                         'Account',
                         'Open account management secondary navbar',
@@ -122,7 +123,7 @@ const NavbarLoader = (function() {
             ], [
                 'Tools',
                 'Open available tools secondary navbar',
-                ['endpoints']
+                ['endpoints', 'loan_stats']
             ]];
             if(perms) {
                 for(var i = 0, len = perms.length; i < len; i++) {
@@ -307,9 +308,16 @@ const NavbarLoader = (function() {
             } else if (name === 'endpoints') {
                 return {
                     name: 'API Docs',
-                    ariaLabel: 'Navigate to the page to view API documentaiton',
+                    ariaLabel: 'Navigate to the page to view API documentation',
                     current: current,
                     url: '/endpoints.html'
+                }
+            } else if (name === 'loan_stats') {
+                return {
+                    name: 'Stats',
+                    ariaLabel: 'Navigate to the page containing statistics',
+                    current: current,
+                    url: '/loan_stats.html'
                 }
             }
         }
