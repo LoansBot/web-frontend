@@ -3342,7 +3342,7 @@ const [
                     React.createElement(
                         UserTrustControlsWithAjax,
                         {
-                            key: 'controls',
+                            key: `controls-${this.props.userID}-${this.state.trustViewCounter}`,
                             targetUserId: this.props.userId,
                             queueItemUuid: this.props.queueItemUuid,
                             onChanged: this.onTrustStatusChanged
