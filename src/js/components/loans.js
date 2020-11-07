@@ -975,7 +975,7 @@ const [
                                                     evt.creationType === 0 ? (
                                                         React.createElement(
                                                             'a',
-                                                            {key: '2', href: evt.creationPermalink},
+                                                            {key: '2', href: evt.creationPermalink, target: '_blank'},
                                                             'using this comment'
                                                         )
                                                     ) : (
