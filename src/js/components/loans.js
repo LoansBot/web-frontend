@@ -2545,6 +2545,7 @@ const [
                 this.setState((state) => {
                     let newState = Object.assign({}, state);
                     newState.downloadText += joinedLines
+                    newState.downloadText += '\n'
                     return newState;
                 });
 
