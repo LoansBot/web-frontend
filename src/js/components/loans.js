@@ -2466,7 +2466,7 @@ const [
                 newState.downloadExpanded = true;
                 newState.downloadSpinner = true;
                 newState.downloadDisabled = true;
-                newState.downloadText = 'lender,borrower,currency_code,principal_minor,principal_repayment_minor,created_at,repaid_at,last_repaid_at';
+                newState.downloadText = 'lender,borrower,currency_code,principal_minor,principal_repayment_minor,created_at,repaid_at,last_repaid_at\n';
                 return newState;
             })
 
