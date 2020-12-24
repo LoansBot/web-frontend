@@ -2466,7 +2466,7 @@ const [
                 newState.downloadExpanded = true;
                 newState.downloadSpinner = true;
                 newState.downloadDisabled = true;
-                newState.downloadText = 'lender,borrower,currency_code,principal_minor,principal_repayment_minor,created_at,repaid_at,last_repaid_at\n';
+                newState.downloadText = 'loan_id,lender,borrower,currency_code,principal_minor,principal_repayment_minor,created_at,repaid_at,last_repaid_at,unpaid_at\n';
                 return newState;
             })
 
@@ -2529,15 +2529,16 @@ const [
 
                     let loanInfo = await resp.json();
                     lines.push([
+                        loanIDs[idx],
                         loanInfo.lender,
                         loanInfo.borrower,
-                        loanInfo.currency_code,
                         loanInfo.currency_code,
                         loanInfo.principal_minor,
                         loanInfo.principal_repayment_minor,
                         loanInfo.created_at,
                         loanInfo.repaid_at,
-                        loanInfo.last_repaid_at
+                        loanInfo.last_repaid_at,
+                        loanInfo.unpaid_at
                     ].join(','));
                 }
 
