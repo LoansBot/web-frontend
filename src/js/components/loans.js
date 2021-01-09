@@ -2233,6 +2233,7 @@ const [
      * - Key-space pagination
      * - WCAG-AAA contrast throughout.
      * - Mobile friendly design
+     * - Download link (fills a text area with csv)
      */
     class LoanFilterFormWithList extends React.Component {
         constructor(props) {
@@ -2247,7 +2248,12 @@ const [
                 minimizing: false,
                 username: null,
                 showDeleted: false,
-                includeEditOption: false
+                includeEditOption: false,
+                downloadAvailable: false,
+                downloadExpanded: false,
+                downloadDisabled: false,
+                downloadSpinner: true,
+                downloadText: ''
             }
 
             if (AuthHelper.isLoggedIn()) {
@@ -2262,6 +2268,7 @@ const [
                     this.setState((state) => {
                         let newState = Object.assign({}, state);
                         newState.username = json.username;
+                        newState.downloadAvailable = true;
                         return newState;
                     });
                 });
@@ -2282,6 +2289,10 @@ const [
                     });
                 })
             }
+
+            this.onDownloadCSVClicked = this.onDownloadCSVClicked.bind(this);
+
+            this.setDownloadAlert = null;
         }
 
         render() {
@@ -2298,8 +2309,51 @@ const [
                             filterQuery: ((query) => { this.filterQuery = query; }).bind(this),
                             filterChanged: this.onFilterChanged.bind(this)
                         }
-                    )
-                ].concat([
+                    ),
+                    React.createElement(
+                        SmartHeightEased,
+                        {
+                            key: 'loan-download',
+                            initialState: 'closed',
+                            desiredState: this.state.downloadAvailable ? 'expanded' : 'closed'
+                        },
+                        [
+                            React.createElement(
+                                Alertable,
+                                {
+                                    key: 'loan-download-button',
+                                    alertSet: ((alrt) => { this.setDownloadAlert = alrt })
+                                },
+                                React.createElement(
+                                    Button,
+                                    {
+                                        text: this.state.downloadExpanded ? 'Close CSV' : 'Download and Show CSV',
+                                        type: 'button',
+                                        disabled: this.state.downloadDisabled,
+                                        onClick: this.onDownloadCSVClicked
+                                    }
+                                )
+                            ),
+                            React.createElement(
+                                SmartHeightEased,
+                                {
+                                    key: 'csv',
+                                    initialState: 'closed',
+                                    desiredState: this.state.downloadExpanded ? 'expanded' : 'closed'
+                                },
+                                this.state.downloadSpinner ?
+                                React.createElement(CenteredSpinner) :
+                                React.createElement(
+                                    TextArea,
+                                    {
+                                        text: this.state.downloadText,
+                                        rows: 10,
+                                        disabled: true
+                                    }
+                                )
+                            )
+                        ]
+                    ),
                     React.createElement(
                         SmartHeightEased,
                         {
@@ -2323,7 +2377,7 @@ const [
                             }
                         )
                     )
-                ])
+                ]
             );
         }
 
@@ -2391,6 +2445,123 @@ const [
                 });
             }).bind(this), 1000);
             this.setState(newState);
+        }
+
+        async onDownloadCSVClicked() {
+            this.setDownloadAlert();
+            if (this.state.downloadExpanded) {
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.downloadExpanded = false;
+                    newState.downloadSpinner = true;
+                    newState.downloadDisabled = false;
+                    newState.downloadText = '';
+                    return newState;
+                });
+                return;
+            }
+
+            this.setState((state) => {
+                let newState = Object.assign({}, state);
+                newState.downloadExpanded = true;
+                newState.downloadSpinner = true;
+                newState.downloadDisabled = true;
+                newState.downloadText = 'loan_id,lender,borrower,currency_code,principal_minor,principal_repayment_minor,created_at,repaid_at,last_repaid_at,unpaid_at\n';
+                return newState;
+            })
+
+            this.fetchAfter(null);
+        }
+
+        async fetchAfter(afterID) {
+            let pageSize = 50;
+            let realParameters = Object.assign({}, this.filterQuery());
+            realParameters.limit = pageSize;
+            realParameters.order = 'id_asc';
+
+            while (true) {
+                realParameters.after_id = afterID;
+                let paramsStr = Object.entries(realParameters).filter(([_, val]) => val !== null).map(([key, val]) => `${key}=${encodeURIComponent(val)}`).join('&');
+
+                let handled = true;
+                let resp = await api_fetch(`/api/loans?${paramsStr}`, AuthHelper.auth());
+                if (!resp.ok) {
+                    handled = true;
+                    if (resp.status == 429) {
+                        setTimeout(() => this.fetchAfter(afterID), 15000);
+                        return;
+                    }
+                    AlertHelper.createFromResponse('fetch page', resp).then(this.setDownloadAlert);
+                    this.setState((state) => {
+                        let newState = Object.assign({}, state);
+                        newState.downloadDisabled = false;
+                        newState.downloadExpanded = false;
+                        return newState;
+                    });
+                    return;
+                }
+                let loanIDs = await resp.json();
+                let loanResponses = await Promise.all(loanIDs.map((loanID) => {
+                    return api_fetch(`/api/loans/${loanID}`, AuthHelper.auth());
+                }))
+
+                let lines = [];
+                for (let idx = 0; idx < loanIDs.length; idx++) {
+                    afterID = loanIDs[idx];
+                    let resp = loanResponses[idx];
+
+                    if (resp.status === 429) {
+                        let newAfterID = (idx === 0 ? afterID : loanIDs[idx - 1]);
+                        setTimeout(() => this.fetchAfter(newAfterID), 15000);
+                        return;
+                    }
+
+                    if (!resp.ok) {
+                        AlertHelper.createFromResponse('fetch loan', resp).then(this.setDownloadAlert);
+                        this.setState((state) => {
+                            let newState = Object.assign({}, state);
+                            newState.downloadDisabled = false;
+                            newState.downloadExpanded = false;
+                            return newState;
+                        });
+                        return;
+                    }
+
+                    let loanInfo = await resp.json();
+                    lines.push([
+                        loanIDs[idx],
+                        loanInfo.lender,
+                        loanInfo.borrower,
+                        loanInfo.currency_code,
+                        loanInfo.principal_minor,
+                        loanInfo.principal_repayment_minor,
+                        loanInfo.created_at,
+                        loanInfo.repaid_at,
+                        loanInfo.last_repaid_at,
+                        loanInfo.unpaid_at
+                    ].join(','));
+                }
+
+                let joinedLines = lines.join("\n")
+                this.setState((state) => {
+                    let newState = Object.assign({}, state);
+                    newState.downloadText += joinedLines
+                    newState.downloadText += '\n'
+                    return newState;
+                });
+
+                if (loanIDs.length < pageSize) {
+                    this.setState((state) => {
+                        let newState = Object.assign({}, state);
+                        newState.downloadSpinner = false;
+                        newState.downloadDisabled = false;
+                        return newState;
+                    })
+                    break;
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 2000))
+            }
         }
 
         componentWillUnmount() {

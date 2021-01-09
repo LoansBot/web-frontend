@@ -154,7 +154,7 @@ const [LoginForm, LoginFormWithLogic] = (function() {
 
             let username = this.getUsername();
             let password = this.getPassword();
-            let token = this.getToken();
+            let token = this.getToken && this.getToken();
 
             console.log(`Logging in as ${username} (use captcha? ${!!token})`);
             this.setState({
