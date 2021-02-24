@@ -16,6 +16,14 @@ const [LoginForm, LoginFormWithLogic] = (function() {
      * @param {function} passwordSet A function which we call after mounting
      *   with a function which accepts a string and sets the password to that
      *   value
+     * @param {function} trustThisPCQuery A function which we call after mounting
+     *   with a function which accepts no arguments and returns true if we trust
+     *   this computer (use localStorage) and false if we do not (use session
+     *   storage).
+     * @param {function} trustThisPCSet A function which we call after mounting
+     *   with a function which accepts a boolean argument of true if we trust
+     *   this computer (use localStorage) and false if we do not (use session
+     *   storage).
      * @param {function} captchaQuery A function which we call after mounting
      *   with a function which accepts no arguments and returns the current
      *   captcha token.
@@ -53,6 +61,17 @@ const [LoginForm, LoginFormWithLogic] = (function() {
                         tokenGet: this.props.captchaQuery,
                         tokenClear: this.props.captchaClear
                     }),
+                    React.createElement(FormElement, {
+                            key: 'trust-this-pc',
+                            labelText: 'Trust this PC'
+                        },
+                        React.createElement(CheckBox, {
+                            key: 'trust-this-pc',
+                            disabled: false,
+                            checkedSet: this.props.trustThisPCSet,
+                            checkedQuery: this.props.trustThisPCQuery
+                        })
+                    ),
                     React.createElement(Button, {
                         key: 'submit', type: 'submit', style: 'primary', text: 'Login',
                         onClick: ((e) => {
@@ -88,7 +107,9 @@ const [LoginForm, LoginFormWithLogic] = (function() {
         passwordQuery: PropTypes.func,
         passwordSet: PropTypes.func,
         captchaQuery: PropTypes.func,
-        cpatchaClear: PropTypes.func,
+        captchaClear: PropTypes.func,
+        trustThisPCQuery: PropTypes.func,
+        trustThisPCSet: PropTypes.func,
         submit: PropTypes.func,
         disabled: PropTypes.bool
     };
@@ -111,6 +132,7 @@ const [LoginForm, LoginFormWithLogic] = (function() {
             this.getUsername = null;
             this.getPassword = null;
             this.getToken = null;
+            this.getTrustThisPC = null;
             this.clearToken = null;
         }
 
@@ -140,6 +162,7 @@ const [LoginForm, LoginFormWithLogic] = (function() {
                             passwordQuery: ((gtr) => this.getPassword = gtr).bind(this),
                             captchaQuery: ((gtr) => this.getToken = gtr).bind(this),
                             captchaClear: ((clr) => this.clearToken = clr).bind(this),
+                            trustThisPCQuery: ((gtr) => this.getTrustThisPC = gtr).bind(this),
                             submit: this.onSubmit.bind(this),
                             disabled: this.state.disabled
                         }
@@ -155,6 +178,7 @@ const [LoginForm, LoginFormWithLogic] = (function() {
             let username = this.getUsername();
             let password = this.getPassword();
             let token = this.getToken && this.getToken();
+            let trustThisPC = this.getTrustThisPC();
 
             console.log(`Logging in as ${username} (use captcha? ${!!token})`);
             this.setState({
@@ -217,8 +241,13 @@ const [LoginForm, LoginFormWithLogic] = (function() {
                     return resp.json();
                 }
             }).then(((data) => {
-                sessionStorage.setItem('rl-authtoken', data.token);
-                sessionStorage.setItem('rl-user-id', data.user_id);
+                let storage = sessionStorage;
+                if (trustThisPC) {
+                    storage = localStorage;
+                }
+
+                storage.setItem('rl-authtoken', data.token);
+                storage.setItem('rl-user-id', data.user_id);
                 this.setState(
                     {
                         alert: {

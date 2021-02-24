@@ -47,14 +47,29 @@ const AuthHelper = (function() {
          *   info or an object with keys token and user id
          */
         getAuthToken() {
-            let token = sessionStorage.getItem('rl-authtoken');
+            let sessionInfo = this.realGetAuthStorage(sessionStorage);
+            if (sessionInfo !== null) {
+                return sessionInfo;
+            }
+
+            return this.realGetAuthStorage(localStorage);
+        }
+
+        /**
+         * Get the auth token and use rid in the given storage.
+         *
+         * @param {*} storage sessionStorage, localStorage, or some duck-typed
+         *   equivalent.
+         */
+        realGetAuthStorage(storage) {
+            let token = storage.getItem('rl-authtoken');
             if (token === null) {
-                this.clearAuthToken();
+                this.realClearAuthToken(storage);
                 return null;
             }
-            let userId = parseInt(sessionStorage.getItem('rl-user-id'));
+            let userId = parseInt(storage.getItem('rl-user-id'));
             if (isNaN(userId)) {
-                this.clearAuthToken();
+                this.realClearAuthToken(storage);
                 return null;
             }
             return {token: token, userId: userId};
@@ -62,11 +77,23 @@ const AuthHelper = (function() {
 
         /**
          * Clear the locally stored authtoken. This does not revoke the auth
-         * token on the server.
+         * token on the server. This clears it no matter where it is.
          */
         clearAuthToken() {
-            sessionStorage.setItem('rl-authtoken', null);
-            sessionStorage.setItem('rl-user-id', null);
+            this.realClearAuthToken(sessionStorage);
+            this.realClearAuthToken(localStorage);
+        }
+
+        /**
+         * Clear the locally stored authtoken within the given storage. Typically
+         * either session or local storage.
+         *
+         * @param {object} storage Either local storage, session storage, or some
+         *   duck-typed equivalent.
+         */
+        realClearAuthToken(storage) {
+            storage.setItem('rl-authtoken', null);
+            storage.setItem('rl-user-id', null);
         }
     }
 
