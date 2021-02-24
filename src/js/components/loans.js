@@ -367,9 +367,10 @@ const [
         }
 
         fetchLoan(force) {
-            let headers = {'Content-Type': 'application/json'}
+            let headers = {'Content-Type': 'application/json'};
             if (force) {
-                headers['Cache-Control'] = 'no-cache'
+                headers['Cache-Control'] = 'no-cache';
+                headers['Pragma'] = 'no-cache';
             };
             api_fetch(
                 `/api/loans/${this.props.loanId}`,
