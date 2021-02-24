@@ -1304,6 +1304,7 @@ const [
             let headers = {'Content-Type': 'application/json'}
             if (force) {
                 headers['Cache-Control'] = 'no-cache'
+                headers['Pragma'] = 'no-cache';
             };
             api_fetch(
                 `/api/loans/${this.props.loanId}/detailed`,
