@@ -2671,7 +2671,7 @@ const [
 
                 if (this.props.queueItemUuid) {
                     return api_fetch(
-                        `/api/trusts/${this.props.queueItemUuid}`,
+                        `/api/trusts/queue/${this.props.queueItemUuid}`,
                         AuthHelper.auth({method: 'DELETE'})
                     );
                 }
@@ -2782,7 +2782,7 @@ const [
 
                 if (this.props.queueItemUuid) {
                     return api_fetch(
-                        `/api/trusts/${this.props.queueItemUuid}`,
+                        `/api/trusts/queue/${this.props.queueItemUuid}`,
                         AuthHelper.auth({method: 'DELETE'})
                     );
                 }
