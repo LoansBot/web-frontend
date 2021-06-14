@@ -342,6 +342,7 @@ const [DemographicsLookupAjaxAndView, DemographicsShowAjaxAndView, DemographicsB
                 `/api/users/${this.props.userId}/demographics?captcha=${token}`,
                 AuthHelper.auth({
                     method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(bodyParams)
                 })
             ).then(((resp) => {

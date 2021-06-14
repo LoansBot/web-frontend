@@ -261,7 +261,10 @@ const [RecheckHelperAndToolWithAjax] = (function() {
                     body: JSON.stringify({
                         link_fullname: linkFullname,
                         comment_fullname: commentFullname
-                    })
+                    }),
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
                 })
             ).then((resp) => {
                 if (!resp.ok) {
