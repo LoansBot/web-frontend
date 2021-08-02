@@ -1,7 +1,6 @@
-let authToken = sessionStorage.getItem('rl-authtoken');
+let authToken = AuthHelper.getAuthToken();
 
-sessionStorage.setItem('rl-authtoken', null);
-sessionStorage.setItem('rl-user-id', null);
+AuthHelper.clearAuthToken();
 
 if (authToken !== null) {
     api_fetch(
